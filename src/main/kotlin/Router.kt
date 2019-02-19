@@ -5,22 +5,22 @@ class Router {
     fun routeCommand(command: Command, sendChannel: SendChannel<ByteArray>): Unit =
         when (command){
             is Command.IO -> routeIO(command, sendChannel)
-            is Command.LedOpen -> TODO()
+            is Command.OpenLed -> TODO()
             is Command.Restart -> TODO()
             is Command.Update -> TODO()
-            is Command.VideoOpen -> TODO()
-            is Command.VideoUpdate -> TODO()
+            is Command.PlayVideo -> TODO()
+            is Command.UpdateVideo -> TODO()
         }
 
     private fun routeIO(ioCommand: Command.IO, sendChannel: SendChannel<ByteArray>): Unit =
             when(ioCommand){
-                is Command.IO.SlaveOpen9600B8N1 -> TODO()
-                is Command.IO.SlaveOpen19200B8N1 -> TODO()
-                is Command.IO.SlaveOpen19200B9N1 -> TODO()
-                is Command.IO.SlaveClose -> TODO()
-                is Command.IO.SlaveSend -> TODO()
+                is Command.IO.OpenSlave9600B8N1 -> TODO()
+                is Command.IO.OpenSlave19200B8N1 -> TODO()
+                is Command.IO.OpenSlave19200B9N1 -> TODO()
+                is Command.IO.CloseSlave -> TODO()
+                is Command.IO.SendSlave -> TODO()
                 is Command.IO.SerialState -> TODO()
-                is Command.IO.MasterDemo -> TODO()
-                is Command.IO.MasterCirsa -> TODO()
+                is Command.IO.DemoMode -> TODO()
+                is Command.IO.CirsaMode -> TODO()
             }
 }
