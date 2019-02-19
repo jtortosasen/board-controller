@@ -8,7 +8,6 @@ import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.io.ByteWriteChannel
 import kotlinx.coroutines.io.writeAvailable
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -28,7 +27,7 @@ class NetworkSocket(configuration: Configuration) {
     private val commandSize = configuration.commandSize.toInt()
     private val commandScheme = configuration.commandScheme
 
-    private val router = Router(this)
+    private val router = Router()
 
 
     fun start() = GlobalScope.launch(Dispatchers.Main) {
@@ -67,7 +66,8 @@ class NetworkSocket(configuration: Configuration) {
                 val command = input.readCommand()
                 if (command > 0)
                     routerScope.launch {
-                        router.routeCommand(command, channel)
+                        val c: Command? = Command.map[command.toInt()]
+                        c?.let { router.routeCommand(it, channel) }
                     }
             } catch (e: Throwable) {
                 channelAvailable.set(false)
