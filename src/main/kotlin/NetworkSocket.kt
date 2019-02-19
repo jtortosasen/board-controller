@@ -38,6 +38,7 @@ class NetworkSocket(configuration: Configuration) {
                 val listenerJob = tcpListener(clientSocket.openReadChannel(), channel)
                 val senderJob = tcpSender(clientSocket.openWriteChannel(), channel)
                 listenerJob.join()
+                listenerJob.cancelChildren()
                 listenerJob.cancel()
                 senderJob.cancelAndJoin()
             } catch (e: Throwable) {
