@@ -2,6 +2,7 @@ import kotlinx.coroutines.channels.SendChannel
 
 
 class Router {
+
     fun routeCommand(command: Command, sendChannel: SendChannel<ByteArray>): Unit =
         when (command){
             is Command.IO -> routeIO(command, sendChannel)
