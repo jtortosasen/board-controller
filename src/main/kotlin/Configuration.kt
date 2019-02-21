@@ -2,5 +2,7 @@ class Configuration{
     val serverIp: String = ""
     val serverPort: String = ""
     val commandSize: String = ""
-    val commandScheme: ByteArray = ByteArray(commandSize.toInt())
+    val commandLengthAsBytes: Int = 4
+    val commandPositionBytes: IntArray = intArrayOf(3,5)
+    val commandFixedLenghtBytes = 8
 }
