@@ -7,36 +7,51 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.io.ByteWriteChannel
 import kotlinx.coroutines.io.writeAvailable
-import kotlinx.coroutines.sync.Mutex
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicBoolean
 
+/**
+ * NetworkSocket se encarga de gestionar la comunicación vía TCP, provee un punto de entrada y otro de salida,
+ * utiliza un channel para recibir de cualquier coroutina información que ha de enviarse al servidor  externo
+ */
 
 class NetworkSocket(configuration: Configuration) {
 
     private val routerScope: CoroutineScope = CoroutineScope(Dispatchers.Default)
-    private val mutex = Mutex()
 
     private var isRunning = AtomicBoolean()
     var channelAvailable = AtomicBoolean()
 
     private val socketBuilder = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp()
 
+    /**
+     * Variables de configuración a servidor y tramas
+     */
+
     private val serverIP = configuration.serverIp
     private val serverPort = configuration.serverPort
-    private val commandSize = configuration.commandSize.toInt()
-    private val commandScheme = configuration.commandScheme
+    private val commandLengthAsBytes = configuration.commandLengthAsBytes
+    private val commandPositionBytes = configuration.commandPositionBytes
+    private val commandFixedLenghtBytes = configuration.commandFixedLenghtBytes
 
     private val router = Router()
 
+    /**
+     * Se encarga de iniciar el listener y el sender, es el punto de entrada del programa.
+     * Crea un socket de conexión al servidor, crea corrutinas de escucha y envío y gestiona la conexión,
+     * cuando la pierde, fuerza otra vez a conectarse una y otra vez.
+     */
 
     fun start() = GlobalScope.launch(Dispatchers.Main) {
         while (isRunning.get()) {
             try {
                 val clientSocket = socketBuilder.connect(InetSocketAddress(serverIP, serverPort.toInt()))
+                // channel por el cual las corrutinas se comunican con el sender y éste puede recibir lo que necesite
                 val channel = Channel<ByteArray>()
                 val listenerJob = tcpListener(clientSocket.openReadChannel(), channel)
                 val senderJob = tcpSender(clientSocket.openWriteChannel(), channel)
+                // suspendemos la ejecución aquí a la espera de que ocurra cualquier evento o fallo que finalice la escucha,
+                // cancelamos todas las corrutinas que cuelgan de la principal y volvemos a iniciar la conexión
                 listenerJob.join()
                 listenerJob.cancelChildren()
                 listenerJob.cancel()
@@ -47,6 +62,10 @@ class NetworkSocket(configuration: Configuration) {
             }
         }
     }
+
+    /**
+     * Envía la información al servidor
+     */
 
     private fun tcpSender(output: ByteWriteChannel, channel: Channel<ByteArray>) = CoroutineScope(Dispatchers.IO).launch{
         while(isActive){
@@ -60,16 +79,25 @@ class NetworkSocket(configuration: Configuration) {
         }
     }
 
+    /**
+     * Inicia el listener, gestiona el estado de conexión y abre y cierra el channel por la cual las corrutinas pueden enviar información
+     * Recibe un comando, lo parsea y lo envía al enrutador para que controle qué ha de hacer
+     */
+
     private fun tcpListener(input: ByteReadChannel, channel: Channel<ByteArray>) = CoroutineScope(Dispatchers.IO).launch {
         channelAvailable.set(true)
         while (isActive) {
             try {
                 val command = input.readCommand()
-                if (command > 0)
+                command?.let {
                     routerScope.launch {
-                        val c: Command? = Command.map[command.toInt()]
-                        c?.let { router.routeCommand(it, channel) }
+                        val commandValue = command[0]
+                        if(commandValue is Byte){
+                            val c: Command? = Command.map[commandValue.toInt()]
+                            c?.let { router.routeCommand(it, channel) }
+                        }
                     }
+                }
             } catch (e: Throwable) {
                 channelAvailable.set(false)
                 break
@@ -77,22 +105,23 @@ class NetworkSocket(configuration: Configuration) {
         }
     }
 
-    private suspend fun ByteReadChannel.readCommand(): Byte {
-        val array = ByteArray(commandSize)
+    /**
+     * Devuelve un array de 2 dimensiones con el comando y la trama  si la hay.
+     * Primero recibe los dos primeros bytes, desplazamos el primer byte recibido 8 bits a la izquierda y le sumamos el segundo byte.
+     */
+
+    private suspend fun ByteReadChannel.readCommand(): Array<Any>? {
         try {
-            while (true) {
-                val firstByte = readByte()
-                if (firstByte == 0x55.toByte()) {
-                    array[0] = firstByte
-                    for (i in 1..commandSize) {
-                        array[i] = readByte()
-                    }
-                }
-                return if (array[3] > 0 && (array[3] == array[5]))
-                    array[3]
-                else -1
-            }
-        } catch (e: Throwable) {
+            val bufferLengthArray = ByteArray(commandLengthAsBytes) { readByte() }
+            val remainingBufferLength =
+                bufferLengthArray[0].toInt().shl(8) + bufferLengthArray[1].toInt()
+            val bufferArray = ByteArray (remainingBufferLength) { readByte() }
+
+            return if(bufferArray[commandPositionBytes[0]] == bufferArray[commandPositionBytes[1]])
+                arrayOf(bufferArray[3], bufferArray.filterIndexed{ index, _ -> index > 6 })
+            else null
+        }
+        catch (e: Throwable) {
             throw Exception()
         }
     }
