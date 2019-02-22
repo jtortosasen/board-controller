@@ -67,61 +67,58 @@ class NetworkSocket(configuration: Configuration) {
      * Envía la información al servidor
      */
 
-    private fun tcpSender(output: ByteWriteChannel, channel: Channel<ByteArray>) = CoroutineScope(Dispatchers.IO).launch{
-        while(isActive){
-            try{
-                val byteArray = channel.receive()
-                output.writeAvailable(byteArray)
-            }catch (e: Throwable){
-                println("No se puede enviar al servidor")
-                e.printStackTrace()
+    private fun tcpSender(output: ByteWriteChannel, channel: Channel<ByteArray>) =
+        CoroutineScope(Dispatchers.IO).launch {
+            while (isActive) {
+                try {
+                    val byteArray = channel.receive()
+                    output.writeAvailable(byteArray)
+                } catch (e: Throwable) {
+                    println("No se puede enviar al servidor")
+                    e.printStackTrace()
+                }
             }
         }
-    }
 
     /**
      * Inicia el listener, gestiona el estado de conexión y abre y cierra el channel por la cual las corrutinas pueden enviar información
      * Recibe un comando, lo parsea y lo envía al enrutador para que controle qué ha de hacer
      */
 
-    private fun tcpListener(input: ByteReadChannel, channel: Channel<ByteArray>) = CoroutineScope(Dispatchers.IO).launch {
-        channelAvailable.set(true)
-        while (isActive) {
-            try {
-                val command = input.readCommand()
-                command?.let {
-                    routerScope.launch {
-                        val commandValue = command[0]
-                        if(commandValue is Byte){
-                            val c: Command? = Command.map[commandValue.toInt()]
-                            c?.let { router.routeCommand(it, channel) }
+    private fun tcpListener(input: ByteReadChannel, channel: Channel<ByteArray>) =
+        CoroutineScope(Dispatchers.IO).launch {
+            channelAvailable.set(true)
+            while (isActive) {
+                try {
+                    val command = input.readCommand()
+                    command?.let {
+                        routerScope.launch {
+                            router.routeCommand(it, channel)
                         }
                     }
+                } catch (e: Throwable) {
+                    channelAvailable.set(false)
+                    break
                 }
-            } catch (e: Throwable) {
-                channelAvailable.set(false)
-                break
             }
         }
-    }
 
     /**
      * Devuelve un array de 2 dimensiones con el comando y la trama  si la hay.
      * Primero recibe los dos primeros bytes, desplazamos el primer byte recibido 8 bits a la izquierda y le sumamos el segundo byte.
      */
 
-    private suspend fun ByteReadChannel.readCommand(): Array<Any>? {
+    private suspend fun ByteReadChannel.readCommand(): Command? {
         try {
             val bufferLengthArray = ByteArray(commandLengthAsBytes) { readByte() }
             val remainingBufferLength =
                 bufferLengthArray[0].toInt().shl(8) + bufferLengthArray[1].toInt()
-            val bufferArray = ByteArray (remainingBufferLength) { readByte() }
+            val bufferArray = ByteArray(remainingBufferLength) { readByte() }
 
-            return if(bufferArray[commandPositionBytes[0]] == bufferArray[commandPositionBytes[1]])
-                arrayOf(bufferArray[3], bufferArray.filterIndexed{ index, _ -> index > 6 })
+            return if (bufferArray[commandPositionBytes[0]] == bufferArray[commandPositionBytes[1]])
+                Command.get(bufferArray[3].toInt(),bufferArray.filterIndexed { index, _ -> index > 6 }.toByteArray())
             else null
-        }
-        catch (e: Throwable) {
+        } catch (e: Throwable) {
             throw Exception()
         }
     }
