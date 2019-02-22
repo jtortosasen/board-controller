@@ -72,7 +72,7 @@ class NetworkSocket(configuration: Configuration) {
             while (isActive) {
                 try {
                     val byteArray = channel.receive()
-                    output.writeAvailable(byteArray)
+                    byteArray.forEach { output.writeByte(it) }
                 } catch (e: Throwable) {
                     println("No se puede enviar al servidor")
                     e.printStackTrace()
