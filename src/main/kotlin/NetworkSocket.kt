@@ -6,7 +6,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.io.ByteWriteChannel
-import kotlinx.coroutines.io.writeAvailable
+import kotlinx.coroutines.io.readAvailable
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -72,7 +72,8 @@ class NetworkSocket(configuration: Configuration) {
             while (isActive) {
                 try {
                     val byteArray = channel.receive()
-                    byteArray.forEach { output.writeByte(it) }
+                    output.writeCommand(byteArray)
+//                    byteArray.forEach { output.writeByte(it) }
                 } catch (e: Throwable) {
                     println("No se puede enviar al servidor")
                     e.printStackTrace()
@@ -103,23 +104,43 @@ class NetworkSocket(configuration: Configuration) {
             }
         }
 
-    /**
-     * Devuelve un array de 2 dimensiones con el comando y la trama  si la hay.
-     * Primero recibe los dos primeros bytes, desplazamos el primer byte recibido 8 bits a la izquierda y le sumamos el segundo byte.
-     */
+
+    // TODO()
+    private suspend fun ByteWriteChannel.writeCommand(byteArray: ByteArray) {
+        try{
+            val encapsulatedByteArray = ByteArray(byteArray.size + 2)
+            TODO()
+
+        }catch (e: Throwable){
+
+        }
+    }
 
     private suspend fun ByteReadChannel.readCommand(): Command? {
         try {
-            val bufferLengthArray = ByteArray(commandLengthAsBytes) { readByte() }
-            val remainingBufferLength =
-                bufferLengthArray[0].toInt().shl(8) + bufferLengthArray[1].toInt()
-            val bufferArray = ByteArray(remainingBufferLength) { readByte() }
+            val tempArray = ByteArray(255)
+            readAvailable(tempArray)
+            val byteArray = tempArray.trim()
 
-            return if (bufferArray[commandPositionBytes[0]] == bufferArray[commandPositionBytes[1]])
-                Command.get(bufferArray[3].toInt(),bufferArray.filterIndexed { index, _ -> index > 6 }.toByteArray())
-            else null
+            // 55 FF CM FF CM 03
+            for (i in 0 until byteArray.size) {
+                if (byteArray[i] == 0x55.toByte() && byteArray[i + 1] == 0xFF.toByte() && byteArray[i + 5] == 0x03.toByte()) {
+                    return Command.get(byteArray[i + 2].toInt(),
+                        byteArray.filterIndexed { index, _ -> index > i + 5 }.toByteArray()
+                    )
+                }
+            }
+            return null
         } catch (e: Throwable) {
             throw Exception()
         }
+    }
+
+    private fun ByteArray.trim(): ByteArray {
+        var i: Int = size - 1
+        while (i >= 0 && this[i].toInt() == 0) {
+            --i
+        }
+        return this.copyOfRange(0, i + 1)
     }
 }
