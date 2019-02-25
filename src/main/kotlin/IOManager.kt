@@ -12,37 +12,26 @@ import kotlinx.coroutines.channels.SendChannel
 
 class IOManager{
 
-    private interface Mode
-    private class Master: Mode
-    private enum class SlaveAction{
-        OPEN, CLOSE, SEND
-    }
-    private data class Slave(val action: SlaveAction): Mode
-
-
-
-    private data class SerialConfiguration(val bauds: Int, val dataBits: Int, val parityBit: Char, val stopBit: Int)
-    private data class IOMode(val mode: Mode, val serialConfiguration: SerialConfiguration?)
-
     private lateinit var currentCommand: Command
     private var workingState: Boolean = false
-    private lateinit var currentMode: Mode
     private lateinit var commandJob: Job
 
-    private fun routeIO(ioCommand: Command.IO): IOMode = when (ioCommand) {
-            is Command.IO.OpenSlave9600B8N1 -> IOMode(Slave(SlaveAction.OPEN), SerialConfiguration(9600, 8, 'N', 1))
-            is Command.IO.OpenSlave19200B8N1 -> IOMode(Slave(SlaveAction.OPEN),SerialConfiguration(19200, 8, 'N', 1))
-            is Command.IO.OpenSlave19200B9N1 -> IOMode(Slave(SlaveAction.OPEN),SerialConfiguration(19200, 9, 'N', 1))
-            is Command.IO.CloseSlave -> IOMode(Slave(SlaveAction.CLOSE), null)
-            is Command.IO.SendSlave -> IOMode(Slave(SlaveAction.SEND), null)
-            is Command.IO.SerialState -> TODO()
-            is Command.IO.DemoMode -> IOMode(Master(), null)
-            is Command.IO.CirsaMode -> IOMode(Master(),null)
+
+    fun routeIO(command: Command.IO, channel: SendChannel<ByteArray>): Unit = when (command) {
+        is Command.IO.OpenSlave9600B8N1 -> TODO()
+        is Command.IO.OpenSlave19200B8N1 -> TODO()
+        is Command.IO.OpenSlave19200B9N1 -> TODO()
+        is Command.IO.CloseSlave -> TODO()
+        is Command.IO.SendSlave -> TODO()
+        is Command.IO.SerialState -> TODO()
+        is Command.IO.DemoMode -> TODO()
+        is Command.IO.CirsaMode -> TODO()
     }
 
-    fun writeCommand(command: Command, channel: SendChannel<ByteArray>){
+    private fun configureSerialConnection(){
 
     }
+
 
     //Serial here
 
