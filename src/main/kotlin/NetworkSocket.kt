@@ -1,3 +1,4 @@
+import com.fazecast.jSerialComm.SerialPort
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
@@ -43,6 +44,7 @@ class NetworkSocket(configuration: Configuration) {
      */
 
     fun start() = GlobalScope.launch(Dispatchers.Main) {
+
         while (isRunning.get()) {
             try {
                 val clientSocket = socketBuilder.connect(InetSocketAddress(serverIP, serverPort.toInt()))

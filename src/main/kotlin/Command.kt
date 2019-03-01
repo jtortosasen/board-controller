@@ -1,8 +1,10 @@
+import com.fazecast.jSerialComm.SerialPort
+
 sealed class Command{
     sealed class IO : Command(){
-        class OpenSlave9600B8N1(baudRate: Int = 9600, bits: Int = 8) : IO()
-        class OpenSlave19200B8N1(baudRate: Int = 19200, bits: Int = 8) : IO()
-        class OpenSlave19200B9N1(baudRate: Int = 19200, bits: Int = 9) : IO()
+        class OpenSlave9600B8N1(baudRate: Int = 9600, dataBits: Int = 8, parity: Int = SerialPort.NO_PARITY, stopBits: Int = SerialPort.ONE_STOP_BIT) : IO()
+        class OpenSlave19200B8N1(baudRate: Int = 19200, dataBits: Int = 8, parity: Int = SerialPort.NO_PARITY, stopBits: Int = SerialPort.ONE_STOP_BIT) : IO()
+        class OpenSlave19200B9N1(baudRate: Int = 19200, dataBits: Int = 9, parity: Int = SerialPort.NO_PARITY, stopBits: Int = SerialPort.ONE_STOP_BIT) : IO()
         class CloseSlave: IO()
         class SendSlave(content: ByteArray) : IO()
         class SerialState: IO()

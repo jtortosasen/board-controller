@@ -1,3 +1,4 @@
+import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.SendChannel
 
@@ -16,6 +17,9 @@ class IOManager{
     private var workingState: Boolean = false
     private lateinit var commandJob: Job
 
+    private val serialPorts = SerialPort.getCommPorts()
+    private lateinit var serialPort: SerialPort
+
 
     fun routeIO(command: Command.IO, channel: SendChannel<ByteArray>): Unit = when (command) {
         is Command.IO.OpenSlave9600B8N1 -> TODO()
@@ -23,10 +27,30 @@ class IOManager{
         is Command.IO.OpenSlave19200B9N1 -> TODO()
         is Command.IO.CloseSlave -> TODO()
         is Command.IO.SendSlave -> TODO()
-        is Command.IO.SerialState -> TODO()
+        is Command.IO.SerialState -> serialState(channel)
         is Command.IO.DemoMode -> TODO()
         is Command.IO.CirsaMode -> TODO()
     }
+
+    private fun serialState(channel: SendChannel<ByteArray>){
+        if(!this::serialPort.isInitialized){
+            if(serialPorts.size > 0){
+                serialPort = serialPorts[0]
+                //SEND ACK
+                return
+            }else{
+                //SEND NACK
+                return
+            }
+        }
+        //SEND ACK
+        return
+    }
+
+    private fun openSlave9600B8N1
+
+
+
 
     private fun configureSerialConnection(){
 
