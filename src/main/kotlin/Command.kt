@@ -1,26 +1,44 @@
 import com.fazecast.jSerialComm.SerialPort
 
-sealed class Command{
-    sealed class IO : Command(){
-        class OpenSlave9600B8N1(baudRate: Int = 9600, dataBits: Int = 8, parity: Int = SerialPort.NO_PARITY, stopBits: Int = SerialPort.ONE_STOP_BIT) : IO()
-        class OpenSlave19200B8N1(baudRate: Int = 19200, dataBits: Int = 8, parity: Int = SerialPort.NO_PARITY, stopBits: Int = SerialPort.ONE_STOP_BIT) : IO()
-        class OpenSlave19200B9N1(baudRate: Int = 19200, dataBits: Int = 9, parity: Int = SerialPort.NO_PARITY, stopBits: Int = SerialPort.ONE_STOP_BIT) : IO()
-        class CloseSlave: IO()
+sealed class Command {
+    sealed class IO : Command() {
+        class OpenSlave9600B8N1(
+            baudRate: Int = 9600,
+            dataBits: Int = 8,
+            parity: Int = SerialPort.NO_PARITY,
+            stopBits: Int = SerialPort.ONE_STOP_BIT
+        ) : IO()
+
+        class OpenSlave19200B8N1(
+            baudRate: Int = 19200,
+            dataBits: Int = 8,
+            parity: Int = SerialPort.NO_PARITY,
+            stopBits: Int = SerialPort.ONE_STOP_BIT
+        ) : IO()
+
+        class OpenSlave19200B9N1(
+            baudRate: Int = 19200,
+            dataBits: Int = 9,
+            parity: Int = SerialPort.NO_PARITY,
+            stopBits: Int = SerialPort.ONE_STOP_BIT
+        ) : IO()
+
+        class CloseSlave : IO()
         class SendSlave(content: ByteArray) : IO()
-        class SerialState: IO()
-        class DemoMode: IO()
-        class CirsaMode: IO()
+        class SerialState : IO()
+        class DemoMode : IO()
+        class CirsaMode : IO()
     }
 
-    class OpenLed: Command()
-    class UpdateVideo: Command()
-    class PlayVideo: Command()
-    class Update: Command()
-    class Restart: Command()
+    class OpenLed : Command()
+    class UpdateVideo : Command()
+    class PlayVideo : Command()
+    class Update : Command()
+    class Restart : Command()
 
     companion object {
-        fun get(command: Int, content: ByteArray): Command?{
-            return when(command){
+        fun get(command: Int, content: ByteArray): Command? {
+            return when (command) {
                 0x22 -> IO.OpenSlave9600B8N1()
                 0x23 -> IO.OpenSlave19200B8N1()
                 0x24 -> IO.OpenSlave19200B9N1()
