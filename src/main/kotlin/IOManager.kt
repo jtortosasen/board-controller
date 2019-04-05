@@ -1,60 +1,58 @@
-import com.fazecast.jSerialComm.SerialPort
-import kotlinx.coroutines.Job
+import config.Configuration
+import io.ktor.network.selector.ActorSelectorManager
+import io.ktor.network.sockets.aSocket
+import io.ktor.network.sockets.openReadChannel
+import io.ktor.network.sockets.openWriteChannel
+import io.ktor.util.KtorExperimentalAPI
+import kotlinx.coroutines.*
+import org.koin.core.KoinComponent
+import org.koin.core.inject
+import tcp.input.IListener
+import tcp.output.ISender
+import serial.ISerialManager
+import java.net.InetSocketAddress
 
 
-/**
- * Los modos master son cancelables, se lanza corrutina
- * Los modos slave NO son cancelables, son un simple método suspendido
- * Los dos modos son excluyentes, master espera a que el comando slave termine y entra, puede ser cancelado si entra un comando que lo excluya
- * addCommand gestiona el estado y estas condiciones, puede cancelar las corrutinas (job)
- */
+@KtorExperimentalAPI
+class IOManager(configuration: Configuration) : KoinComponent {
 
 
-class IOManager {
-
-    private lateinit var currentCommand: Command
-    private var workingState: Boolean = false
-    private lateinit var commandJob: Job
-
-    private val serialPorts = SerialPort.getCommPorts()
-    private lateinit var serialPort: SerialPort
+    private val socketBuilder = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp()
+    private val serverIP = configuration.serverIp
+    private val serverPort = configuration.serverPort
 
 
-    fun routeIO(command: Command.IO): Unit = when (command) {
-        is Command.IO.OpenSlave9600B8N1  -> TODO()
-        is Command.IO.OpenSlave19200B8N1 -> TODO()
-        is Command.IO.OpenSlave19200B9N1 -> TODO()
-        is Command.IO.CloseSlave         -> TODO()
-        is Command.IO.SendSlave          -> TODO()
-        is Command.IO.SerialState        -> serialState()
-        is Command.IO.DemoMode           -> TODO()
-        is Command.IO.CirsaMode          -> TODO()
-    }
+    fun start() = CoroutineScope(Dispatchers.Main).launch {
+        while (isActive) {
+            try {
+                val socket = socketBuilder.connect(InetSocketAddress(serverIP, serverPort.toInt()))
 
-    private fun serialState() {
-        if (!this::serialPort.isInitialized) {
-            if (serialPorts.size > 0) {
-                serialPort = serialPorts[0]
-                //SEND ACK
-                return
-            } else {
-                //SEND NACK
-                return
+                val serialManager: ISerialManager by inject()
+                val listener: IListener by inject()
+                val sender: ISender by inject()
+
+                listener.input(socket.openReadChannel())
+                sender.output(socket.openWriteChannel())
+
+                val serialJob = serialManager.run {
+                    start()
+                }
+                val listenerJob = listener.run {
+                    start()
+                }
+                val senderJob = sender.run {
+                    start()
+                }
+
+                listenerJob.join()
+                listenerJob.cancelChildren()
+                serialJob.cancelAndJoin()
+                senderJob.cancelAndJoin()
+            } catch (e: Exception) {
+                //LOGGING HERE
+                println("No se puede conectar al servidor $e")
+                delay(1000L)
             }
         }
-        //SEND ACK
-        return
     }
-
-//    private fun openSlave9600B8N1
-
-
-    private fun configureSerialConnection() {
-
-    }
-
-
-    //Serial here
-
-
 }

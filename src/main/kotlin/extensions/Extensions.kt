@@ -1,15 +1,13 @@
-package Extensions
+package extensions
 
-import Command
+import tcp.input.Command
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.io.ByteWriteChannel
-import kotlinx.coroutines.io.readAvailable
+import java.io.InputStream
 
-suspend fun ByteReadChannel.readCommand(): Command? {
+fun ByteArray.extractCommand(): Command {
     try {
-        val tempArray = ByteArray(255)
-        readAvailable(tempArray)
-        val byteArray = tempArray.trim()
+        val byteArray = this.trim()
 
         // 55 FF CM FF CM 03
         for (i in 0 until byteArray.size) {
@@ -20,10 +18,15 @@ suspend fun ByteReadChannel.readCommand(): Command? {
                 )
             }
         }
-    } catch (e: Throwable) {
-        throw Exception()
+        return Command.get(0)
     }
-    return null
+    catch (e: Exception){
+        throw e
+    }
+}
+
+suspend fun ByteReadChannel.readStream(): ByteArray {
+    TODO()
 }
 
 suspend fun ByteWriteChannel.writeCommand(byteArray: ByteArray) {
@@ -42,4 +45,24 @@ private fun ByteArray.trim(): ByteArray {
         --i
     }
     return this.copyOfRange(0, i + 1)
+}
+
+fun InputStream.readAndPrintSerial(){
+    try {
+        var count = 0
+        while(true) {
+            Thread.sleep(10)
+            val trunk = read()
+            if(trunk == 1)
+                count++
+            if(count >= 10)
+                break
+            if(trunk != 1)
+                count = 0
+            print(trunk.toChar())
+        }
+        println()
+    }catch (e: Throwable){
+        println()
+    }
 }
