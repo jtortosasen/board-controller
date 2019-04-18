@@ -1,6 +1,8 @@
 package serial
 
 import com.fazecast.jSerialComm.SerialPort
+import extensions.trim
+import kotlinx.coroutines.delay
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -9,17 +11,6 @@ class SerialIO: ISerialIO {
     private lateinit var serialPort: SerialPort
     private lateinit var output: OutputStream
     private lateinit var input: InputStream
-
-    private var baudRate: Int = 0
-    private var dataBits: Int = 0
-        set(value) =
-            if(value == 9){
-                mode9Bit = true
-                field = 8
-            }else
-                field = value
-    private var parity : Int = 0
-    private var stopBits : Int = 0
 
     private var mode9Bit: Boolean = false
 
@@ -30,41 +21,93 @@ class SerialIO: ISerialIO {
         if (Integer.bitCount(it) % 2 == 0) intArrayOf(odd, even) else intArrayOf(even, odd)
     }
 
-    override fun serialPort(serialPortName: String) {
+    override fun comPort(serialPortName: String) {
         serialPort = SerialPort.getCommPort(serialPortName)
+        serialPort.openPort()
+
+        serialPort.setComPortTimeouts(SerialPort.TIMEOUT_NONBLOCKING, 0, 0)
+
         output = serialPort.outputStream
         input = serialPort.inputStream
     }
 
     override fun serialParams(baudRate: Int, dataBits: Int, parity: Int, stopBits: Int){
-        this.baudRate = baudRate
-        this.dataBits = dataBits
-        this.parity = parity
-        this.stopBits = stopBits
-        applyParams()
+        mode9Bit = dataBits == 9
+
+        serialPort.baudRate = baudRate
+        serialPort.numDataBits = dataBits
+        serialPort.parity = parity
+        serialPort.numStopBits = stopBits
     }
 
-    private fun applyParams() = serialPort.apply {
-            this.numDataBits = dataBits
-            this.baudRate = baudRate
-            this.parity = parity
-            this.numStopBits = stopBits
-    }
 
     override fun write(byteArray: ByteArray) {
         if(mode9Bit)
-            write9bit(byteArray)
-        else{
+            output.write9bit(byteArray)
+        else
+            output.write(byteArray)
+    }
 
+    private fun OutputStream.write9bit(byteArray: ByteArray){
+        byteArray.forEachIndexed { index, byte ->
+            if(index == 0){
+                val tempParity = parityArray[byte.toInt()][0]
+                if (serialPort.parity != tempParity){
+                    serialPort.parity = tempParity
+                }
+            }
+            else{
+                val tempParity = parityArray[byte.toInt()][1]
+                if (serialPort.parity != tempParity){
+                    serialPort.parity = tempParity
+                }
+            }
+            write(byte.toInt())
         }
     }
 
-    private fun write9bit(byteArray: ByteArray){
+    override suspend fun read(): ByteArray {
 
+//        val byteArray = ArrayList<Byte>()
+//        try {
+//            var count = 0
+//            while(true) {
+//                val trunk = input.read()
+//                if(trunk != 1){
+//                    byteArray.add(trunk.toByte())
+//                    continue
+//                }
+//                else if(count >= 10){
+//                    return byteArray.toByteArray()
+//                }
+//            }
+//        }catch (e: Throwable){ }
+//
+//        return byteArray.toByteArray()
+        val buffer = ByteArray(255)
+        serialPort.readBytes(buffer, buffer.size.toLong())
+        return buffer.trim()
     }
 
-    override fun read(): ByteArray {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+//    fun InputStream.readAndPrintSerial(){
+//        try {
+//            var count = 0
+//            while(true) {
+//                Thread.sleep(10)
+//                val trunk = read()
+//                if(trunk == 1)
+//                    count++
+//                if(count >= 10)
+//                    break
+//                if(trunk != 1)
+//                    count = 0
+//                print(trunk.toChar())
+//            }
+//            println()
+//        }catch (e: Throwable){
+//            println()
+//        }
+//    }
+
 
 }

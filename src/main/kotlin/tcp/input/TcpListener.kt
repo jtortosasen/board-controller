@@ -1,30 +1,51 @@
 package tcp.input
 
-import extensions.readStream
-import kotlinx.coroutines.CoroutineScope
-
+import extensions.trim
+import kotlinx.coroutines.*
 import kotlinx.coroutines.io.ByteReadChannel
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.io.readAvailable
+import mu.KotlinLogging
 import org.koin.core.KoinComponent
+import java.io.*
 
 
 class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
 
-    private lateinit var input: ByteReadChannel
+    private val logger = KotlinLogging.logger {}
 
-    override fun input(input: ByteReadChannel) {
+    private lateinit var input: InputStream
+
+    override fun input(input: InputStream) {
         this.input = input
     }
 
-    override fun CoroutineScope.start() = launch {
+    override suspend fun start() = CoroutineScope(Dispatchers.IO).launch {
         while (isActive) {
             try {
-                val data = input.readStream()
+                logger.debug { "Waiting data: " }
+                val data = input.readCommand()
+                logger.debug { "Recieved data: " }
+                data.forEach {
+                    val a = it
+                    logger.debug { a.toUByte().toString(16)}
+                }
                 handler.handle(data)
+                delay(1000)
             } catch (e: Exception) {
+                logger.error { e }
                 break
             }
         }
+    }
+
+    private fun InputStream.readCommand(): ByteArray {
+
+        val array = ByteArray(255)
+        try{
+            DataInputStream(this).read(array)
+        }catch (e: IOException){
+            throw e
+        }catch (e: EOFException){}
+        return array.trim()
     }
 }

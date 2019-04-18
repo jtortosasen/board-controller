@@ -1,57 +1,59 @@
-import config.Configuration
+import config.IConfiguration
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
-import io.ktor.util.KtorExperimentalAPI
+
 import kotlinx.coroutines.*
+import mu.KotlinLogging
 import org.koin.core.KoinComponent
 import org.koin.core.inject
 import tcp.input.IListener
 import tcp.output.ISender
 import serial.ISerialManager
-import java.net.InetSocketAddress
+import java.net.Socket
 
 
-@KtorExperimentalAPI
-class IOManager(configuration: Configuration) : KoinComponent {
+class IOManager(configuration: IConfiguration) : KoinComponent {
 
 
-    private val socketBuilder = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp()
+    private val logger = KotlinLogging.logger {}
+
     private val serverIP = configuration.serverIp
     private val serverPort = configuration.serverPort
 
 
-    fun start() = CoroutineScope(Dispatchers.Main).launch {
-        while (isActive) {
+    suspend fun start() {
+        while (true) {
             try {
-                val socket = socketBuilder.connect(InetSocketAddress(serverIP, serverPort.toInt()))
+                logger.debug { "Connecting to TCP $serverIP: $serverPort" }
+
+                val socket = Socket(serverIP, serverPort.toInt())
+                socket.getOutputStream().write("Gestimaq\r\n".toByteArray(Charsets.US_ASCII) ,0, "Gestimaq\r\n".toByteArray(Charsets.US_ASCII).size)
 
                 val serialManager: ISerialManager by inject()
                 val listener: IListener by inject()
                 val sender: ISender by inject()
 
-                listener.input(socket.openReadChannel())
-                sender.output(socket.openWriteChannel())
 
-                val serialJob = serialManager.run {
-                    start()
-                }
-                val listenerJob = listener.run {
-                    start()
-                }
-                val senderJob = sender.run {
-                    start()
-                }
+                listener.input(socket.getInputStream())
+                sender.output(socket.getOutputStream())
 
-                listenerJob.join()
-                listenerJob.cancelChildren()
+                val serialJob = serialManager.start()
+                val listenerJob = listener.start()
+                val senderJob = sender.start()
+
+                logger.debug { "Running jobs"}
+                senderJob.join()
+                listenerJob.cancelAndJoin()
+                logger.debug { "Canceling jobs"}
                 serialJob.cancelAndJoin()
-                senderJob.cancelAndJoin()
+                logger.debug { "All jobs canceled"}
+                delay(10000L)
             } catch (e: Exception) {
                 //LOGGING HERE
-                println("No se puede conectar al servidor $e")
-                delay(1000L)
+                logger.error(e) {"$e"}
+                delay(10000L)
             }
         }
     }

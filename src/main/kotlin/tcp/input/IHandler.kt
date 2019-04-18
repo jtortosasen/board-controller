@@ -1,6 +1,6 @@
 package tcp.input
 
-import kotlinx.coroutines.channels.Channel
+import command.Command
 import kotlinx.coroutines.channels.SendChannel
 
 interface IHandler {

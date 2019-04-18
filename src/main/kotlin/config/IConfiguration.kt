@@ -1,5 +1,8 @@
 package config
 
 interface IConfiguration{
-    var serialPort: String
+    val serverIp: String
+    val serverPort: String
+    var develop: Boolean
+    val serialPort: String
 }

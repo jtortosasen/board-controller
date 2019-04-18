@@ -2,7 +2,6 @@ import config.IConfiguration
 import config.Configuration
 import tcp.input.CommandHandler
 import tcp.input.IHandler
-import io.ktor.util.KtorExperimentalAPI
 import org.koin.dsl.module
 import tcp.input.IListener
 import tcp.input.TcpListener
@@ -14,7 +13,6 @@ import serial.SerialIO
 import serial.SerialManager
 
 
-@KtorExperimentalAPI
 val koinModule = module {
 
     single <IConfiguration> {
@@ -33,7 +31,7 @@ val koinModule = module {
         CommandHandler()
     }
 
-    factory <ISerialManager> {
+    single <ISerialManager> {
         SerialManager(
             handle = get<IHandler>() as CommandHandler,
             sender = get<ISender>() as TcpSender,
@@ -42,11 +40,11 @@ val koinModule = module {
         )
     }
 
-    factory <IListener> {
+    single <IListener> {
         TcpListener(handler = get<IHandler>() as CommandHandler)
     }
 
-    factory <ISender> {
+    single <ISender> {
         TcpSender()
     }
 }

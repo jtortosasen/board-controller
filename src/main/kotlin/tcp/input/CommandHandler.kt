@@ -1,10 +1,14 @@
 package tcp.input
 
-import extensions.extractCommand
+import command.Command
 import kotlinx.coroutines.channels.SendChannel
+import mu.KotlinLogging
+import java.io.IOException
 
 
 class CommandHandler: IHandler {
+
+    private val logger = KotlinLogging.logger {}
 
     private lateinit var channel: SendChannel<Command.IO>
     override fun channel(channel: SendChannel<Command.IO>) {
@@ -16,44 +20,22 @@ class CommandHandler: IHandler {
     }
 
     private suspend fun handleCommand(command: Command) = when (command) {
-    is Command.IO          -> handleIO(command)
-    is Command.IdMacNACK   -> IdNack()
-    is Command.OpenLed     -> openLed()
-    is Command.Restart     -> restart()
-    is Command.Update      -> update()
-    is Command.PlayVideo   -> playVideo()
-    is Command.UpdateVideo -> updateVideo()
-    is Command.IdMacACK    -> {}
-    is Command.None        -> {}
+        is Command.IO           -> handleIO(command)
+        is Command.IdMacNACK    -> IdNack()
+        is Command.OpenLed      -> openLed()
+        is Command.Restart      -> restart()
+        is Command.Update       -> update()
+        is Command.PlayVideo    -> playVideo()
+        is Command.UpdateVideo  -> updateVideo()
+        is Command.IdMacACK     -> {}
+        is Command.IdMacNACK    -> throw Exception("No identified")
+        is Command.None         -> {}
     }
 
     override suspend fun handleIO(command: Command.IO) {
         channel.send(command)
-//        when (command) {
-
-//        is Command.IO.OpenSlave9600B8N1  -> openPort(command)
-//        is Command.IO.OpenSlave19200B8N1 -> openPort(command)
-//        is Command.IO.OpenSlave19200B9N1 -> openPort(command)
-//        is Command.IO.CloseSlave         -> closePort(command)
-//        is Command.IO.SendSlave          -> sendData(command)
-//        is Command.IO.CirsaMode          -> masterMode(command)
     }
 
-//    private suspend fun openPort(command: Command.IO){
-//        serialManager.openPort(command)
-//    }
-//
-//    private suspend fun closePort(command: Command.IO.CloseSlave){
-//        serialManager.closePort(command)
-//    }
-//
-//    private suspend fun sendData(command: Command.IO.SendSlave){
-//        serialManager.sendData(command)
-//    }
-//
-//    private fun masterMode(command: Command.IO){
-//        serialManager.masterMode(command)
-//    }
 
     override fun IdNack() {
         throw Exception("Placa no identificada")
@@ -64,7 +46,7 @@ class CommandHandler: IHandler {
     }
 
     override fun restart() {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        shutdown()
     }
 
     override fun update() {
@@ -79,4 +61,45 @@ class CommandHandler: IHandler {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
+    private fun ByteArray.extractCommand(): Command {
+        try {
+            val array = this
+            if(array.size == 1){
+                return Command.get(command = array[0])
+            }
+            if(array.size == 6){
+                if(array.contains(0xFF.toByte())){
+                    return Command.get(command = array[array.indexOf(0xFF.toByte()) + 1])
+                }
+            }else{
+                if(array.contains(0xFF.toByte())){
+                    return Command.get(
+                        command = array[array.indexOf(0xFF.toByte()) + 1],
+                        content = array.takeLast(array.size - array.indexOf(0x03)).reversed().toByteArray()
+                    )
+                }
+            }
+            return Command.get(0)
+        }
+        catch (e: Exception){
+            throw e
+        }
+    }
+
+    @Throws(RuntimeException::class, IOException::class)
+    fun shutdown() {
+        val shutdownCommand: String
+        val operatingSystem = System.getProperty("os.name")
+
+        if ("Linux" == operatingSystem || "Mac OS X" == operatingSystem) {
+            shutdownCommand = "shutdown -h now"
+        } else if ("Windows" == operatingSystem) {
+            shutdownCommand = "shutdown.exe -s -t 0"
+        } else {
+            throw RuntimeException("Unsupported operating system.")
+        }
+
+        Runtime.getRuntime().exec(shutdownCommand)
+        System.exit(0)
+    }
 }

@@ -9,10 +9,10 @@ class Application : KoinComponent {
 
     private val networkManager: IOManager by inject()
     private val configuration: IConfiguration by inject()
-    fun start() = networkManager.start()
+    suspend fun start() = networkManager.start()
 
-    fun portName(name: String){
-        configuration.serialPort = name
+    fun mode(development: Boolean){
+        configuration.develop = development
     }
 }
 
@@ -25,19 +25,16 @@ suspend fun main(args: Array<String>) {
 
     if(args.isNotEmpty()){
         when {
-            args[0] == "local" -> with(Application()){
-                portName("/dev/ttyS0")
-                start().join()
+            args[0] == "development" -> with(Application()){
+                mode(development = true)
+                start()
             }
-            args[0] == "remote" -> with(Application()){
-                portName("/dev/ttAMA4")
-                start().join()
+            args[0] == "production" -> with(Application()){
+                mode(development = false)
+                start()
             }
             else -> print("args: [local|remote]")
         }
-        return
     }
-
     print("args: [local|remote]")
-
 }
