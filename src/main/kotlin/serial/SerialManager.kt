@@ -119,8 +119,9 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
         }
     }
 
-    suspend private fun sasRoutine(){
+    private suspend fun sasRoutine(){
 
+        serialIO.mode9Bit = true
         serialIO.write(byteArrayOf(0x80.toByte(), 0x81.toByte()))
         val array = serialIO.read()
         serialIO.write(byteArrayOf(0x01.toByte(), 0x54.toByte()))
