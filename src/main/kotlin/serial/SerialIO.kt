@@ -2,7 +2,6 @@ package serial
 
 import com.fazecast.jSerialComm.SerialPort
 import extensions.trim
-import kotlinx.coroutines.delay
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -12,7 +11,7 @@ class SerialIO: ISerialIO {
     private lateinit var output: OutputStream
     private lateinit var input: InputStream
 
-    private var mode9Bit: Boolean = false
+    override var mode9Bit: Boolean = false
 
     private val even = SerialPort.EVEN_PARITY
     private val odd = SerialPort.ODD_PARITY
@@ -68,46 +67,24 @@ class SerialIO: ISerialIO {
 
     override suspend fun read(): ByteArray {
 
-//        val byteArray = ArrayList<Byte>()
-//        try {
-//            var count = 0
-//            while(true) {
-//                val trunk = input.read()
-//                if(trunk != 1){
-//                    byteArray.add(trunk.toByte())
-//                    continue
-//                }
-//                else if(count >= 10){
-//                    return byteArray.toByteArray()
-//                }
-//            }
-//        }catch (e: Throwable){ }
-//
-//        return byteArray.toByteArray()
-        val buffer = ByteArray(255)
-        serialPort.readBytes(buffer, buffer.size.toLong())
-        return buffer.trim()
+        val buffer = ArrayList<Byte>()
+        var readFlag = false
+
+        while(true){
+            val bytesAvailable = serialPort.bytesAvailable()
+            if(bytesAvailable > 0){
+                val chunkBuffer = ByteArray(bytesAvailable)
+                if(serialPort.readBytes(chunkBuffer, buffer.size.toLong()) > 0){
+                    readFlag = true
+                    for (chunk in chunkBuffer)
+                        buffer.add(chunk)
+                }
+            }else if (readFlag){
+                return buffer.toByteArray()
+            }
+        }
+//        val buffer = ByteArray(255)
+//        serialPort.readBytes(buffer, buffer.size.toLong())
+//        return buffer.trim()
     }
-
-//    fun InputStream.readAndPrintSerial(){
-//        try {
-//            var count = 0
-//            while(true) {
-//                Thread.sleep(10)
-//                val trunk = read()
-//                if(trunk == 1)
-//                    count++
-//                if(count >= 10)
-//                    break
-//                if(trunk != 1)
-//                    count = 0
-//                print(trunk.toChar())
-//            }
-//            println()
-//        }catch (e: Throwable){
-//            println()
-//        }
-//    }
-
-
 }
