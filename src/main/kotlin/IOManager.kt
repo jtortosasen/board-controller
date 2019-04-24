@@ -1,39 +1,57 @@
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.SendChannel
+import config.IConfiguration
+
+import kotlinx.coroutines.*
+import mu.KotlinLogging
+import org.koin.core.KoinComponent
+import org.koin.core.inject
+import tcp.input.IListener
+import tcp.output.ISender
+import serial.ISerialManager
+import java.net.Socket
 
 
-/**
- * Los modos master son cancelables, se lanza corrutina
- * Los modos slave NO son cancelables, son un simple método suspendido
- * Los dos modos son excluyentes, master espera a que el comando slave termine y entra, puede ser cancelado si entra un comando que lo excluya
- * addCommand gestiona el estado y estas condiciones, puede cancelar las corrutinas (job)
- */
+class IOManager(configuration: IConfiguration) : KoinComponent {
 
 
-class IOManager{
+    private val logger = KotlinLogging.logger {}
 
-    private lateinit var currentCommand: Command
-    private var workingState: Boolean = false
-    private lateinit var commandJob: Job
+    private val serverIP = configuration.serverIp
+    private val serverPort = configuration.serverPort
 
 
-    fun routeIO(command: Command.IO, channel: SendChannel<ByteArray>): Unit = when (command) {
-        is Command.IO.OpenSlave9600B8N1 -> TODO()
-        is Command.IO.OpenSlave19200B8N1 -> TODO()
-        is Command.IO.OpenSlave19200B9N1 -> TODO()
-        is Command.IO.CloseSlave -> TODO()
-        is Command.IO.SendSlave -> TODO()
-        is Command.IO.SerialState -> TODO()
-        is Command.IO.DemoMode -> TODO()
-        is Command.IO.CirsaMode -> TODO()
+    suspend fun start() {
+        while (true) {
+            try {
+                logger.debug { "Connecting to TCP $serverIP: $serverPort" }
+
+                val socket = Socket(serverIP, serverPort.toInt())
+                socket.getOutputStream().write("Gestimaq\r\n".toByteArray(Charsets.US_ASCII) ,0, "Gestimaq\r\n".toByteArray(Charsets.US_ASCII).size)
+
+                val serialManager: ISerialManager by inject()
+                val listener: IListener by inject()
+                val sender: ISender by inject()
+
+
+                listener.input(socket.getInputStream())
+                sender.output(socket.getOutputStream())
+
+                val serialJob = serialManager.start()
+                val listenerJob = listener.start()
+                val senderJob = sender.start()
+
+                logger.debug { "Running jobs"}
+
+                listenerJob.join()
+                logger.debug { "Canceling jobs"}
+                senderJob.cancelAndJoin()
+                serialJob.cancelAndJoin()
+                logger.debug { "All jobs canceled"}
+                delay(10000L)
+            } catch (e: Exception) {
+                //LOGGING HERE
+                logger.error(e) {"$e"}
+                delay(10000L)
+            }
+        }
     }
-
-    private fun configureSerialConnection(){
-
-    }
-
-
-    //Serial here
-
-
 }
