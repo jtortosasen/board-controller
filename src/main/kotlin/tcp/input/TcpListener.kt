@@ -2,8 +2,6 @@ package tcp.input
 
 import extensions.trim
 import kotlinx.coroutines.*
-import kotlinx.coroutines.io.ByteReadChannel
-import kotlinx.coroutines.io.readAvailable
 import mu.KotlinLogging
 import org.koin.core.KoinComponent
 import java.io.*
@@ -24,6 +22,8 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
             try {
                 logger.debug { "Waiting data: " }
                 val data = input.readCommand()
+                if(data.isEmpty())
+                    break
                 logger.debug { "Recieved data: " }
                 data.forEach {
                     val a = it

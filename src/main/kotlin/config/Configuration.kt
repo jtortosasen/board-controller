@@ -1,7 +1,7 @@
 package config
 
 import java.io.File
-import java.io.InputStream
+
 
 class Configuration : IConfiguration {
 
@@ -14,7 +14,7 @@ class Configuration : IConfiguration {
             return if (develop)
                 "/dev/ttyS0"
             else
-                "/dev/ttAMA4"
+                "/dev/ttyAMA4"
         }
 
     private val pathMacAddres: String

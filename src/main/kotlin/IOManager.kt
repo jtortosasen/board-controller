@@ -1,8 +1,4 @@
 import config.IConfiguration
-import io.ktor.network.selector.ActorSelectorManager
-import io.ktor.network.sockets.aSocket
-import io.ktor.network.sockets.openReadChannel
-import io.ktor.network.sockets.openWriteChannel
 
 import kotlinx.coroutines.*
 import mu.KotlinLogging
@@ -44,9 +40,10 @@ class IOManager(configuration: IConfiguration) : KoinComponent {
                 val senderJob = sender.start()
 
                 logger.debug { "Running jobs"}
-                senderJob.join()
-                listenerJob.cancelAndJoin()
+
+                listenerJob.join()
                 logger.debug { "Canceling jobs"}
+                senderJob.cancelAndJoin()
                 serialJob.cancelAndJoin()
                 logger.debug { "All jobs canceled"}
                 delay(10000L)

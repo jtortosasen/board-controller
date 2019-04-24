@@ -17,7 +17,6 @@ class Application : KoinComponent {
 }
 
 suspend fun main(args: Array<String>) {
-
     startKoin {
         printLogger()
         modules(koinModule)
@@ -33,8 +32,8 @@ suspend fun main(args: Array<String>) {
                 mode(development = false)
                 start()
             }
-            else -> print("args: [local|remote]")
+            else -> print("args: [development|production]")
         }
     }
-    print("args: [local|remote]")
+    print("args: [development|production]")
 }

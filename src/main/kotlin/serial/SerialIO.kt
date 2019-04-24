@@ -2,6 +2,7 @@ package serial
 
 import com.fazecast.jSerialComm.SerialPort
 import extensions.trim
+import kotlinx.coroutines.delay
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -65,26 +66,41 @@ class SerialIO: ISerialIO {
         }
     }
 
+    override suspend fun flush() {
+        val bytesAvailable = serialPort.bytesAvailable()
+        if (bytesAvailable > 0) {
+            val chunkBuffer = ByteArray(bytesAvailable)
+            serialPort.readBytes(chunkBuffer, chunkBuffer.size.toLong())
+        }
+    }
+
     override suspend fun read(): ByteArray {
 
         val buffer = ArrayList<Byte>()
         var readFlag = false
+        var startTime: Long = 0
 
         while(true){
+//            delay(1000)
             val bytesAvailable = serialPort.bytesAvailable()
             if(bytesAvailable > 0){
                 val chunkBuffer = ByteArray(bytesAvailable)
-                if(serialPort.readBytes(chunkBuffer, buffer.size.toLong()) > 0){
-                    readFlag = true
-                    for (chunk in chunkBuffer)
-                        buffer.add(chunk)
-                }
-            }else if (readFlag){
+                if(serialPort.readBytes(chunkBuffer, chunkBuffer.size.toLong()) <= 0)
+                    continue
+
+                startTime = System.currentTimeMillis()
+                readFlag = true
+                for (chunk in chunkBuffer)
+                    buffer.add(chunk)
+
+            }else{
+                if (!readFlag)
+                    continue
+                if((System.currentTimeMillis() - startTime) < 100 || buffer.size <= 0 )
+                    continue
+
                 return buffer.toByteArray()
             }
         }
-//        val buffer = ByteArray(255)
-//        serialPort.readBytes(buffer, buffer.size.toLong())
-//        return buffer.trim()
     }
 }

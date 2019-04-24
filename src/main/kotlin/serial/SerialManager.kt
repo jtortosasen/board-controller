@@ -47,9 +47,24 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
         logger.debug { "Listening serial" }
         while (isActive) {
             val data = serialIO.read()
-            data.forEach { logger.debug { "${it.toUByte()}" } }
-            senderChannel.send(data)
+            logger.debug { "Recibido de maquina" }
+            data.forEach { print("${it.toString(16)}-") }
+            println()
+            val header = byteArrayOf(0x55, 0xFF.toByte(), 0x45, 0xFF.toByte(), 0x45, 0x03)
+            val dataWithHeader = applyHeader(header, data)
+            senderChannel.send(dataWithHeader)
         }
+    }
+
+    private fun applyHeader(first: ByteArray, second: ByteArray): ByteArray{
+        val arrayWithHeader = ByteArray(first.size + second.size)
+        for((index,byte) in first.withIndex()){
+            arrayWithHeader[index] = byte
+        }
+        for((index,byte) in second.withIndex()){
+            arrayWithHeader[index+first.size] = byte
+        }
+        return arrayWithHeader
     }
 
     private suspend fun routeCommand(command: Command.IO) = when (command) {
@@ -65,9 +80,7 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
         logger.debug { "Opening Port" }
         setCommand(command)
         setPortParams(command)
-//        senderChannel.send(byteArrayOf(0x03))
         senderChannel.send(byteArrayOf(0x06))
-//        delay(10000)
         listenSerial()
     }
 
@@ -93,7 +106,6 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
     private fun setPortParams(command: Command.IO) {
         logger.debug { "Setting serial params" }
         configurePort(command.baudRate, command.dataBits, command.parity, command.stopBits)
-
     }
 
     private suspend fun closePort(command: Command.IO.CloseSlave) {
@@ -121,6 +133,7 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
 
     private suspend fun sasRoutine(){
 
+        serialIO.flush()
         serialIO.mode9Bit = true
         serialIO.write(byteArrayOf(0x80.toByte(), 0x81.toByte()))
         val array = serialIO.read()
