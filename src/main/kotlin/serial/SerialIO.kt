@@ -1,10 +1,19 @@
 package serial
 
 import com.fazecast.jSerialComm.SerialPort
-import extensions.trim
-import kotlinx.coroutines.delay
 import java.io.InputStream
 import java.io.OutputStream
+
+
+interface ISerialIO {
+    var mode9Bit: Boolean
+    fun comPort(serialPortName: String)
+    fun serialParams(baudRate: Int, dataBits: Int, parity: Int, stopBits: Int)
+    fun write(byteArray: ByteArray)
+    suspend fun read(): ByteArray
+    suspend fun flush()
+}
+
 
 class SerialIO: ISerialIO {
 
@@ -13,10 +22,8 @@ class SerialIO: ISerialIO {
     private lateinit var input: InputStream
 
     override var mode9Bit: Boolean = false
-
     private val even = SerialPort.EVEN_PARITY
     private val odd = SerialPort.ODD_PARITY
-
     private val parityArray = (0..255).map {
         if (Integer.bitCount(it) % 2 == 0) intArrayOf(odd, even) else intArrayOf(even, odd)
     }
@@ -33,13 +40,11 @@ class SerialIO: ISerialIO {
 
     override fun serialParams(baudRate: Int, dataBits: Int, parity: Int, stopBits: Int){
         mode9Bit = dataBits == 9
-
         serialPort.baudRate = baudRate
         serialPort.numDataBits = dataBits
         serialPort.parity = parity
         serialPort.numStopBits = stopBits
     }
-
 
     override fun write(byteArray: ByteArray) {
         if(mode9Bit)
@@ -58,6 +63,7 @@ class SerialIO: ISerialIO {
             }
             else{
                 val tempParity = parityArray[byte.toInt()][1]
+
                 if (serialPort.parity != tempParity){
                     serialPort.parity = tempParity
                 }
@@ -68,6 +74,7 @@ class SerialIO: ISerialIO {
 
     override suspend fun flush() {
         val bytesAvailable = serialPort.bytesAvailable()
+
         if (bytesAvailable > 0) {
             val chunkBuffer = ByteArray(bytesAvailable)
             serialPort.readBytes(chunkBuffer, chunkBuffer.size.toLong())
@@ -75,7 +82,6 @@ class SerialIO: ISerialIO {
     }
 
     override suspend fun read(): ByteArray {
-
         val buffer = ArrayList<Byte>()
         var readFlag = false
         var startTime: Long = 0
@@ -83,22 +89,21 @@ class SerialIO: ISerialIO {
         while(true){
 //            delay(1000)
             val bytesAvailable = serialPort.bytesAvailable()
+
             if(bytesAvailable > 0){
                 val chunkBuffer = ByteArray(bytesAvailable)
+
                 if(serialPort.readBytes(chunkBuffer, chunkBuffer.size.toLong()) <= 0)
                     continue
-
                 startTime = System.currentTimeMillis()
                 readFlag = true
                 for (chunk in chunkBuffer)
                     buffer.add(chunk)
-
             }else{
                 if (!readFlag)
                     continue
                 if((System.currentTimeMillis() - startTime) < 100 || buffer.size <= 0 )
                     continue
-
                 return buffer.toByteArray()
             }
         }

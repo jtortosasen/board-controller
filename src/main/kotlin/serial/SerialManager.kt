@@ -8,11 +8,16 @@ import mu.KotlinLogging
 import tcp.input.IHandler
 import tcp.output.ISender
 
+
+interface ISerialManager {
+    suspend fun start(): Job
+}
+
+
 class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISerialIO, config: IConfiguration) :
     ISerialManager {
 
-
-    private val logger = KotlinLogging.logger {  }
+    private val logger = KotlinLogging.logger { }
 
     private val handleChannel = Channel<Command.IO>()
     private val senderChannel = Channel<ByteArray>()
@@ -29,8 +34,8 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
 
     private val masterMode: Boolean
         get() {
-            if(this::state.isInitialized)
-                if(state is Command.IO.MasterMode)
+            if (this::state.isInitialized)
+                if (state is Command.IO.MasterMode)
                     return true
             return false
         }
@@ -56,24 +61,24 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
         }
     }
 
-    private fun applyHeader(first: ByteArray, second: ByteArray): ByteArray{
+    private fun applyHeader(first: ByteArray, second: ByteArray): ByteArray {
         val arrayWithHeader = ByteArray(first.size + second.size)
-        for((index,byte) in first.withIndex()){
+        for ((index, byte) in first.withIndex()) {
             arrayWithHeader[index] = byte
         }
-        for((index,byte) in second.withIndex()){
-            arrayWithHeader[index+first.size] = byte
+        for ((index, byte) in second.withIndex()) {
+            arrayWithHeader[index + first.size] = byte
         }
         return arrayWithHeader
     }
 
     private suspend fun routeCommand(command: Command.IO) = when (command) {
-        is Command.IO.OpenSlave9600B8N1  -> openPort(command)
+        is Command.IO.OpenSlave9600B8N1 -> openPort(command)
         is Command.IO.OpenSlave19200B8N1 -> openPort(command)
         is Command.IO.OpenSlave19200B9N1 -> openPort(command)
-        is Command.IO.CloseSlave         -> closePort(command)
-        is Command.IO.SendSlave          -> sendData(command)
-        is Command.IO.MasterMode         -> startMasterMode(command)
+        is Command.IO.CloseSlave -> closePort(command)
+        is Command.IO.SendSlave -> sendData(command)
+        is Command.IO.MasterMode -> startMasterMode(command)
     }
 
     private suspend fun openPort(command: Command.IO) {
@@ -100,7 +105,7 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
             masterJob.cancelAndJoin()
         } else
             logger.debug { "Setting command (no previous master mode)" }
-            state = command
+        state = command
     }
 
     private fun setPortParams(command: Command.IO) {
@@ -124,14 +129,14 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
 
     private suspend fun startMasterMode(command: Command.IO.MasterMode) {
         setCommand(command)
-        withContext(Dispatchers.IO){
+        withContext(Dispatchers.IO) {
             when (command) {
                 is Command.IO.MasterMode.Sas -> masterJob = launch { sasRoutine() }
             }
         }
     }
 
-    private suspend fun sasRoutine(){
+    private suspend fun sasRoutine() {
 
         serialIO.flush()
         serialIO.mode9Bit = true
@@ -146,9 +151,9 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
                 0x00.toByte(), 0x08.toByte(), 0x00.toByte(), 0x09.toByte(),
                 0x00.toByte(), 0x0b.toByte(), 0x00.toByte(), 0x6e.toByte(),
                 0x00.toByte(), 0x0A.toByte(), 0x88.toByte()
-            ))
+            )
+        )
     }
-
 
 
 //    fun sasRoutine() {
