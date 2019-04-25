@@ -3,12 +3,18 @@ package config
 import java.io.File
 
 
+interface IConfiguration{
+    val serverIp: String
+    val serverPort: String
+    var develop: Boolean
+    val serialPort: String
+}
+
+
 class Configuration : IConfiguration {
 
     override val serverIp: String = "192.168.1.22"
     override val serverPort: String = "9923"
-    //    val serverIp: String = "localhost"
-//    val serverPort: String = "6789"
     override val serialPort: String
         get() {
             return if (develop)
@@ -16,7 +22,6 @@ class Configuration : IConfiguration {
             else
                 "/dev/ttyAMA4"
         }
-
     private val pathMacAddres: String
         get() {
             return if (develop)
@@ -24,7 +29,6 @@ class Configuration : IConfiguration {
             else
                 "/sys/class/net/wlan0/address"
         }
-
     val macAddress: ByteArray
             get(){
                 val macString: String = File(pathMacAddres)
