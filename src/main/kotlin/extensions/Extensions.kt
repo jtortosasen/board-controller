@@ -1,9 +1,5 @@
 package extensions
 
-import command.Command
-
-
-
 
 fun IntArray.trim(): IntArray {
     var i: Int = size - 1
