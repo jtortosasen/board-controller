@@ -12,14 +12,13 @@ import java.net.Socket
 
 class IOManager(configuration: IConfiguration) : KoinComponent {
 
-
     private val logger = KotlinLogging.logger {}
 
     private val serverIP = configuration.serverIp
     private val serverPort = configuration.serverPort
 
-
     suspend fun start() {
+
         while (true) {
             try {
                 logger.debug { "Connecting to TCP $serverIP: $serverPort" }
@@ -31,7 +30,6 @@ class IOManager(configuration: IConfiguration) : KoinComponent {
                 val listener: IListener by inject()
                 val sender: ISender by inject()
 
-
                 listener.input(socket.getInputStream())
                 sender.output(socket.getOutputStream())
 
@@ -42,14 +40,17 @@ class IOManager(configuration: IConfiguration) : KoinComponent {
                 logger.debug { "Running jobs"}
 
                 listenerJob.join()
+
                 logger.debug { "Canceling jobs"}
+
                 senderJob.cancelAndJoin()
                 serialJob.cancelAndJoin()
+
                 logger.debug { "All jobs canceled"}
+
                 delay(10000L)
             } catch (e: Exception) {
-                //LOGGING HERE
-                logger.error(e) {"$e"}
+                logger.error {"$e"}
                 delay(10000L)
             }
         }
