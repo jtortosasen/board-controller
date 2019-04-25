@@ -7,6 +7,13 @@ import java.io.IOException
 import java.util.*
 
 
+interface IHandler {
+    fun channel(channel: SendChannel<Command.IO>)
+    suspend fun handle(data: ByteArray)
+    suspend fun handleIO(command: Command.IO)
+}
+
+
 class CommandHandler: IHandler {
 
     private val logger = KotlinLogging.logger {}
@@ -24,7 +31,8 @@ class CommandHandler: IHandler {
         is Command.IO           -> handleIO(command)
         is Command.IdMacACK     -> {}
         is Command.IdMacNACK    -> IdNack()
-        is Command.OpenLed      -> openLed()
+        is Command.OpenLed      -> openLed(rgb = command.color)
+        is Command.CloseLed     -> TODO()
         is Command.Restart      -> restart()
         is Command.Update       -> update()
         is Command.PlayVideo    -> playVideo()
@@ -36,41 +44,38 @@ class CommandHandler: IHandler {
         channel.send(command)
     }
 
-
-    override fun IdNack() {
+    fun IdNack() {
         throw Exception("Placa no identificada")
     }
 
-    override fun openLed() {
+    fun openLed(rgb: ByteArray) {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun restart() {
+    fun restart() {
         shutdown()
     }
 
-    override fun update() {
+    fun update() {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun playVideo() {
+    fun playVideo() {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun updateVideo() {
+    fun updateVideo() {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
-
 
     private fun ByteArray.extractCommand(): Command {
 
         val command22 = byteArrayOf(0x55, 0xFF.toByte(), 0x22, 0xFF.toByte(), 0x22, 0x03)
         val command23 = byteArrayOf(0x55, 0xFF.toByte(), 0x23, 0xFF.toByte(), 0x23, 0x03)
         val command24 = byteArrayOf(0x55, 0xFF.toByte(), 0x24, 0xFF.toByte(), 0x24, 0x03)
-        val command25 = byteArrayOf(0x55, 0xFF.toByte(), 0x22, 0xFF.toByte(), 0x22, 0x03)
+        val command25 = byteArrayOf(0x55, 0xFF.toByte(), 0x25, 0xFF.toByte(), 0x25, 0x03)
         val command45 = byteArrayOf(0x55, 0xFF.toByte(), 0x45, 0xFF.toByte(), 0x45, 0x03)
         val command93 = byteArrayOf(0x55, 0xFF.toByte(), 0x93.toByte(), 0xFF.toByte(), 0x93.toByte(), 0x03)
-
         val array = this
 
         if (array.size == 1) {
@@ -101,12 +106,12 @@ class CommandHandler: IHandler {
     }
 
     private infix fun ByteArray.have(inner: ByteArray): Boolean{
-        val outter = this
-        if(outter.contains(inner[0])){
-            var index = outter.indexOf(inner[0])
+        val outer = this
+        if(outer.contains(inner[0])){
+            var index = outer.indexOf(inner[0])
             for (byte in inner){
-                if(outter.size > index)
-                    if(outter[index] != byte)
+                if(outer.size > index)
+                    if(outer[index] != byte)
                         return false
                 index++
             }
@@ -120,14 +125,13 @@ class CommandHandler: IHandler {
         val shutdownCommand: String
         val operatingSystem = System.getProperty("os.name")
 
-        if ("Linux" == operatingSystem || "Mac OS X" == operatingSystem) {
-            shutdownCommand = "shutdown -h now"
+        shutdownCommand = if ("Linux" == operatingSystem || "Mac OS X" == operatingSystem) {
+            "shutdown -h now"
         } else if ("Windows" == operatingSystem) {
-            shutdownCommand = "shutdown.exe -s -t 0"
+            "shutdown.exe -s -t 0"
         } else {
             throw RuntimeException("Unsupported operating system.")
         }
-
         Runtime.getRuntime().exec(shutdownCommand)
         System.exit(0)
     }

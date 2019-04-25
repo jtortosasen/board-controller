@@ -4,7 +4,16 @@ import extensions.trim
 import kotlinx.coroutines.*
 import mu.KotlinLogging
 import org.koin.core.KoinComponent
-import java.io.*
+import java.io.DataInputStream
+import java.io.EOFException
+import java.io.IOException
+import java.io.InputStream
+
+
+interface IListener {
+    fun input(input: InputStream)
+    suspend fun start(): Job
+}
 
 
 class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
@@ -22,12 +31,12 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
             try {
                 logger.debug { "Waiting data: " }
                 val data = input.readCommand()
-                if(data.isEmpty())
+                if (data.isEmpty())
                     break
                 logger.debug { "Recieved data: " }
                 data.forEach {
                     val a = it
-                    logger.debug { a.toUByte().toString(16)}
+                    logger.debug { a.toUByte().toString(16) }
                 }
                 handler.handle(data)
                 delay(1000)
@@ -39,13 +48,13 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
     }
 
     private fun InputStream.readCommand(): ByteArray {
-
         val array = ByteArray(255)
-        try{
+        try {
             DataInputStream(this).read(array)
-        }catch (e: IOException){
+        } catch (e: IOException) {
             throw e
-        }catch (e: EOFException){}
+        } catch (e: EOFException) {
+        }
         return array.trim()
     }
 }
