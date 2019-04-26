@@ -2,6 +2,8 @@ package serial
 
 import command.Command
 import config.IConfiguration
+import gpio.GpioManager
+import gpio.GpioManager.Led
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import mu.KotlinLogging
@@ -11,6 +13,7 @@ import tcp.output.ISender
 
 interface ISerialManager {
     suspend fun start(): Job
+    var led: GpioManager
 }
 
 
@@ -25,6 +28,7 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
     private lateinit var state: Command.IO
     private lateinit var masterJob: Job
 
+    override lateinit var led: GpioManager
 
     init {
         handle.channel(channel = handleChannel)
@@ -44,19 +48,21 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
     override suspend fun start() = CoroutineScope(Dispatchers.IO).launch {
         while (isActive) {
             val command = handleChannel.receive()
+            led.ledColor = Led.Green
             routeCommand(command)
         }
     }
 
     private suspend fun listenSerial() = CoroutineScope(Dispatchers.IO).launch {
-        logger.debug { "Listening serial" }
+//        logger.debug { "Listening serial" }
         while (isActive) {
             val data = serialIO.read()
-            logger.debug { "Recibido de maquina" }
-            data.forEach { print("${it.toString(16)}-") }
+            logger.debug { "Recieved from serial:" }
+            data.forEach { print(it.toString(16)) }
             println()
             val header = byteArrayOf(0x55, 0xFF.toByte(), 0x45, 0xFF.toByte(), 0x45, 0x03)
             val dataWithHeader = applyHeader(header, data)
+            led.ledColor = Led.LightBlue
             senderChannel.send(dataWithHeader)
         }
     }
@@ -82,7 +88,7 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
     }
 
     private suspend fun openPort(command: Command.IO) {
-        logger.debug { "Opening Port" }
+//        logger.debug { "Opening Port" }
         setCommand(command)
         setPortParams(command)
         senderChannel.send(byteArrayOf(0x06))
@@ -109,7 +115,7 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
     }
 
     private fun setPortParams(command: Command.IO) {
-        logger.debug { "Setting serial params" }
+//        logger.debug { "Setting serial params" }
         configurePort(command.baudRate, command.dataBits, command.parity, command.stopBits)
     }
 
@@ -120,6 +126,9 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
 
     private suspend fun sendData(command: Command.IO.SendSlave) {
         setCommand(command)
+        logger.debug { "command content" }
+        command.content.forEach { print(it.toUByte().toString(16)) }
+        println()
         write(command.content)
     }
 
@@ -137,22 +146,22 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
     }
 
     private suspend fun sasRoutine() {
-
-        serialIO.flush()
-        serialIO.mode9Bit = true
-        serialIO.write(byteArrayOf(0x80.toByte(), 0x81.toByte()))
-        val array = serialIO.read()
-        serialIO.write(byteArrayOf(0x01.toByte(), 0x54.toByte()))
-        serialIO.write(
-            byteArrayOf(
-                0x01.toByte(), 0x6f.toByte(), 0x12.toByte(), 0x00.toByte(),
-                0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x01.toByte(),
-                0x00.toByte(), 0x03.toByte(), 0x00.toByte(), 0x04.toByte(),
-                0x00.toByte(), 0x08.toByte(), 0x00.toByte(), 0x09.toByte(),
-                0x00.toByte(), 0x0b.toByte(), 0x00.toByte(), 0x6e.toByte(),
-                0x00.toByte(), 0x0A.toByte(), 0x88.toByte()
-            )
-        )
+//
+//        serialIO.flush()
+//        serialIO.mode9Bit = true
+//        serialIO.write(byteArrayOf(0x80.toByte(), 0x81.toByte()))
+//        val array = serialIO.read()
+//        serialIO.write(byteArrayOf(0x01.toByte(), 0x54.toByte()))
+//        serialIO.write(
+//            byteArrayOf(
+//                0x01.toByte(), 0x6f.toByte(), 0x12.toByte(), 0x00.toByte(),
+//                0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x01.toByte(),
+//                0x00.toByte(), 0x03.toByte(), 0x00.toByte(), 0x04.toByte(),
+//                0x00.toByte(), 0x08.toByte(), 0x00.toByte(), 0x09.toByte(),
+//                0x00.toByte(), 0x0b.toByte(), 0x00.toByte(), 0x6e.toByte(),
+//                0x00.toByte(), 0x0A.toByte(), 0x88.toByte()
+//            )
+//        )
     }
 
 

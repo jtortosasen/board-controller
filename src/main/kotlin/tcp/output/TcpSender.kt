@@ -29,22 +29,16 @@ class TcpSender : ISender, KoinComponent {
     }
 
     override suspend fun start() = CoroutineScope(Dispatchers.IO).launch {
-        logger.debug { "Sending ID" }
         output.write(byteArrayOf(0x00, 0x0b))
         output.write(byteArrayOf(0x55, 0xFF.toByte(), 0x11, 0xFF.toByte(), 0x11, 0x03, 0x37, 0x73, 0x23))
         while (isActive) {
             try {
                 val byteArray = channel.receive()
 
-                logger.debug { "Getting byteArray" }
-                byteArray.forEach { print("${it.toString(16) }-") }
-                println()
-
                 val size = byteArray.size + 2
                 val size1 = size and 0xff
                 val size2 = size shr 8 and 0xff
 
-                logger.debug { "Sending size as  $size2, $size1"}
                 output.write(byteArrayOf(size2.toByte(), size1.toByte()))
                 output.write(byteArray)
                 delay(1000)

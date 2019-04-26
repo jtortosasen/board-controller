@@ -1,5 +1,6 @@
 import config.IConfiguration
 import config.Configuration
+import gpio.GpioManager
 import tcp.input.CommandHandler
 import tcp.input.IHandler
 import org.koin.dsl.module
@@ -14,6 +15,8 @@ import serial.SerialManager
 
 
 val koinModule = module {
+
+    single { GpioManager() }
 
     single <IConfiguration> {
         Configuration()
