@@ -19,7 +19,7 @@ sealed class Command {
         )
         class OpenSlave19200B9N1 : IO(
             baudRate = 19200,
-            dataBits = 8,
+            dataBits = 9,
             parity = SerialPort.NO_PARITY,
             stopBits = SerialPort.ONE_STOP_BIT
         )
