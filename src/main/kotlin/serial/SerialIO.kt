@@ -1,6 +1,7 @@
 package serial
 
 import com.fazecast.jSerialComm.SerialPort
+import kotlinx.coroutines.delay
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -14,6 +15,7 @@ interface ISerialIO {
     suspend fun flush()
 }
 
+//-c 'stty -F " + serialTty.PortName + " 19200 cs8 -cstopb ignpar parenb -parodd/parodd
 
 class SerialIO: ISerialIO {
 
@@ -22,10 +24,28 @@ class SerialIO: ISerialIO {
     private lateinit var input: InputStream
 
     override var mode9Bit: Boolean = false
-    private val even = SerialPort.EVEN_PARITY
-    private val odd = SerialPort.ODD_PARITY
-    private val parityArray = (0..255).map {
-        if (Integer.bitCount(it) % 2 == 0) intArrayOf(odd, even) else intArrayOf(even, odd)
+
+    private val even = "-parodd"
+    private val odd = "parodd"
+    private var currentParity = ""
+    set(value) {
+        bashCommand(command = "stty -F /dev/ttyAMA4 19200 cs8 -cstopb ignpar parenb $value")
+        field = value
+    }
+
+    val parityArray = (0..255).map { generatePair(it) }
+
+    fun generatePair(n: Int) : Array<String> {
+        return if (Integer.bitCount(n) % 2 == 0) arrayOf(odd, even) else arrayOf(even, odd)
+    }
+
+    private fun bashCommand(command: String){
+        val processBuilder = ProcessBuilder()
+        processBuilder.command("bash", "-c", command)
+        try{
+            val process = processBuilder.start()
+            process.waitFor()
+        }catch (e: Exception){ }
     }
 
     override fun comPort(serialPortName: String) {
@@ -41,7 +61,7 @@ class SerialIO: ISerialIO {
     override fun serialParams(baudRate: Int, dataBits: Int, parity: Int, stopBits: Int){
         mode9Bit = dataBits == 9
         serialPort.baudRate = baudRate
-        serialPort.numDataBits = dataBits
+        serialPort.numDataBits = 8
         serialPort.parity = parity
         serialPort.numStopBits = stopBits
     }
@@ -56,16 +76,17 @@ class SerialIO: ISerialIO {
     private fun OutputStream.write9bit(byteArray: ByteArray){
         byteArray.forEachIndexed { index, byte ->
             if(index == 0){
-                val tempParity = parityArray[byte.toInt()][0]
-                if (serialPort.parity != tempParity){
-                    serialPort.parity = tempParity
+                val tempParity = parityArray[byte.toUByte().toInt()][0]
+
+                if (currentParity != tempParity){
+                    currentParity = tempParity
                 }
             }
             else{
-                val tempParity = parityArray[byte.toInt()][1]
+                val tempParity = parityArray[byte.toUByte().toInt()][1]
 
-                if (serialPort.parity != tempParity){
-                    serialPort.parity = tempParity
+                if (currentParity != tempParity){
+                    currentParity = tempParity
                 }
             }
             write(byte.toInt())
@@ -87,7 +108,7 @@ class SerialIO: ISerialIO {
         var startTime: Long = 0
 
         while(true){
-//            delay(1000)
+            delay(200)
             val bytesAvailable = serialPort.bytesAvailable()
 
             if(bytesAvailable > 0){
@@ -95,8 +116,10 @@ class SerialIO: ISerialIO {
 
                 if(serialPort.readBytes(chunkBuffer, chunkBuffer.size.toLong()) <= 0)
                     continue
+
                 startTime = System.currentTimeMillis()
                 readFlag = true
+
                 for (chunk in chunkBuffer)
                     buffer.add(chunk)
             }else{
