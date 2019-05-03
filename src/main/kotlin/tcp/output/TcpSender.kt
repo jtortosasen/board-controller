@@ -1,5 +1,7 @@
 package tcp.output
 
+import gpio.LedManager
+import gpio.LedManager.Led
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import mu.KotlinLogging
@@ -11,16 +13,23 @@ interface ISender {
     fun channel(channel: ReceiveChannel<ByteArray>)
     fun output(output: OutputStream)
     suspend fun start(): Job
+    fun id(id: ByteArray)
+    var led: LedManager
 }
 
 
 class TcpSender : ISender, KoinComponent {
 
     private val logger = KotlinLogging.logger {  }
+    private lateinit var mac: ByteArray
 
     private lateinit var output: OutputStream
     override fun output(output: OutputStream) {
         this.output = output
+    }
+
+    override fun id(id: ByteArray){
+        mac = id.copyOfRange(Math.max(id.size - 3, 0), id.size)
     }
 
     private lateinit var channel: ReceiveChannel<ByteArray>
@@ -28,19 +37,40 @@ class TcpSender : ISender, KoinComponent {
         this.channel = channel
     }
 
+    override lateinit var led: LedManager
+
+    private fun applyHeader(first: ByteArray, second: ByteArray): ByteArray {
+        val arrayWithHeader = ByteArray(first.size + second.size)
+        for ((index, byte) in first.withIndex()) {
+            arrayWithHeader[index] = byte
+        }
+        for ((index, byte) in second.withIndex()) {
+            arrayWithHeader[index + first.size] = byte
+        }
+        return arrayWithHeader
+    }
+
+
     override suspend fun start() = CoroutineScope(Dispatchers.IO).launch {
         output.write(byteArrayOf(0x00, 0x0b))
-        output.write(byteArrayOf(0x55, 0xFF.toByte(), 0x11, 0xFF.toByte(), 0x11, 0x03, 0x37, 0x73, 0x23))
+//        output.write(byteArrayOf(0x55, 0xff.toByte(), 0x11, 0xff.toByte(), 0x11, 0x03, 0x37, 0x73, 0x23))
+        output.write(applyHeader(byteArrayOf(0x55, 0xff.toByte(), 0x11, 0xff.toByte(), 0x11, 0x03), mac))
         while (isActive) {
             try {
                 val byteArray = channel.receive()
+                led.ledColor = Led.LightBlue
 
                 val size = byteArray.size + 2
+                logger.debug { "size: $size" }
                 val size1 = size and 0xff
                 val size2 = size shr 8 and 0xff
 
-                output.write(byteArrayOf(size2.toByte(), size1.toByte()))
-                output.write(byteArray)
+                val array = applyHeader(byteArrayOf(size2.toByte(), size1.toByte()), byteArray)
+
+                logger.debug { "Sending:" }
+                array.forEach { print(it.toString(16)) }
+                println()
+                output.write(array)
                 delay(1000)
             } catch (e: Exception) {
                 logger.debug {"Can't send to server"}
