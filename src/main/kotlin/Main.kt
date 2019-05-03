@@ -1,38 +1,44 @@
+import com.beust.klaxon.Klaxon
 import config.IConfiguration
+import config.SettingsJson
+import mu.KotlinLogging
 import org.koin.core.KoinComponent
 import org.koin.core.context.startKoin
 import org.koin.core.inject
+import java.io.File
+import java.lang.Exception
 
 
 class Application : KoinComponent {
 
-    private val networkManager: IOManager by inject()
-    private val configuration: IConfiguration by inject()
-    suspend fun start() = networkManager.start()
+    private val logger = KotlinLogging.logger {}
 
-    fun mode(development: Boolean){
-        configuration.develop = development
+    suspend fun main() {
+        try {
+            val json = Klaxon().parse<SettingsJson>(File("settings.json"))
+
+            startKoin {
+                printLogger()
+                modules(koinModule)
+            }
+
+            val networkManager: IOManager by inject()
+            val config: IConfiguration by inject()
+
+            json?.let {
+                config.pathMacAddress = it.macPath
+                config.serialPort = it.serialPort
+                config.serverIp = it.serverAddress
+                config.serverPort = it.serverPort
+            }
+            networkManager.start()
+
+        } catch (e: Exception) {
+            logger.error { e }
+        }
     }
 }
 
-suspend fun main(args: Array<String>) {
-    startKoin {
-        printLogger()
-        modules(koinModule)
-    }
-
-    if(args.isNotEmpty()){
-        when {
-            args[0] == "development" -> with(Application()){
-                mode(development = true)
-                start()
-            }
-            args[0] == "production" -> with(Application()){
-                mode(development = false)
-                start()
-            }
-            else -> print("args: [development|production]")
-        }
-    }
-    print("args: [development|production]")
+suspend fun main() {
+    Application().main()
 }
