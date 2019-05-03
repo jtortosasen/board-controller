@@ -2,8 +2,8 @@ package serial
 
 import command.Command
 import config.IConfiguration
-import gpio.GpioManager
-import gpio.GpioManager.Led
+import gpio.LedManager
+import gpio.LedManager.Led
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import mu.KotlinLogging
@@ -13,27 +13,28 @@ import tcp.output.ISender
 
 interface ISerialManager {
     suspend fun start(): Job
-    var led: GpioManager
+    fun close(): Boolean
+    var led: LedManager
 }
 
-
-class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISerialIO, config: IConfiguration) :
+@kotlin.ExperimentalUnsignedTypes
+class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguration) :
     ISerialManager {
 
     private val logger = KotlinLogging.logger { }
 
-    private val handleChannel = Channel<Command.IO>()
-    private val senderChannel = Channel<ByteArray>()
+    private val serialIO : SerialIO = SerialIO()
+
+    private val handleChannel = Channel<Command.IO>(Channel.UNLIMITED)
+    private val senderChannel = Channel<ByteArray>(Channel.UNLIMITED)
 
     private lateinit var state: Command.IO
     private lateinit var masterJob: Job
-
-    override lateinit var led: GpioManager
+    override lateinit var led: LedManager
 
     init {
         handle.channel(channel = handleChannel)
         sender.channel(channel = senderChannel)
-        serialIO.comPort(config.serialPort)
     }
 
     private val masterMode: Boolean
@@ -45,12 +46,21 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
         }
 
 
+    override fun close(): Boolean {
+        return serialIO.close()
+    }
+
     override suspend fun start() = CoroutineScope(Dispatchers.IO).launch {
+        serialIO.comPort(config.serialPort)
+        serialIO.close()
+        serialIO.open()
         while (isActive) {
             val command = handleChannel.receive()
             led.ledColor = Led.Green
             routeCommand(command)
         }
+        logger.debug { "Clossing serial port" }
+        serialIO.close()
     }
 
     private suspend fun listenSerial() = CoroutineScope(Dispatchers.IO).launch {
@@ -62,9 +72,12 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
             println()
             val header = byteArrayOf(0x55, 0xFF.toByte(), 0x45, 0xFF.toByte(), 0x45, 0x03)
             val dataWithHeader = applyHeader(header, data)
-            led.ledColor = Led.LightBlue
+            logger.debug { "##Recieved from serial WITH HEADER:" }
+            dataWithHeader.forEach { print(it.toUByte().toString(16)) }
+            println()
             senderChannel.send(dataWithHeader)
         }
+        serialIO.close()
     }
 
     private fun applyHeader(first: ByteArray, second: ByteArray): ByteArray {
@@ -88,7 +101,6 @@ class SerialManager(handle: IHandler, sender: ISender, private val serialIO: ISe
     }
 
     private suspend fun openPort(command: Command.IO) {
-//        logger.debug { "Opening Port" }
         setCommand(command)
         setPortParams(command)
         senderChannel.send(byteArrayOf(0x06))

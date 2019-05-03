@@ -13,10 +13,11 @@ interface ISerialIO {
     fun write(byteArray: ByteArray)
     suspend fun read(): ByteArray
     suspend fun flush()
+    fun open()
+    fun close(): Boolean
 }
 
-//-c 'stty -F " + serialTty.PortName + " 19200 cs8 -cstopb ignpar parenb -parodd/parodd
-
+@kotlin.ExperimentalUnsignedTypes
 class SerialIO: ISerialIO {
 
     private lateinit var serialPort: SerialPort
@@ -50,12 +51,17 @@ class SerialIO: ISerialIO {
 
     override fun comPort(serialPortName: String) {
         serialPort = SerialPort.getCommPort(serialPortName)
+    }
+
+    override fun open(){
         serialPort.openPort()
-
         serialPort.setComPortTimeouts(SerialPort.TIMEOUT_NONBLOCKING, 0, 0)
-
         output = serialPort.outputStream
         input = serialPort.inputStream
+    }
+
+    override fun close(): Boolean {
+        return serialPort.closePort()
     }
 
     override fun serialParams(baudRate: Int, dataBits: Int, parity: Int, stopBits: Int){
@@ -67,10 +73,12 @@ class SerialIO: ISerialIO {
     }
 
     override fun write(byteArray: ByteArray) {
-        if(mode9Bit)
-            output.write9bit(byteArray)
-        else
-            output.write(byteArray)
+        try {
+            if(mode9Bit)
+                output.write9bit(byteArray)
+            else
+                output.write(byteArray)
+        }catch (e: Exception) {}
     }
 
     private fun OutputStream.write9bit(byteArray: ByteArray){
@@ -108,7 +116,9 @@ class SerialIO: ISerialIO {
         var startTime: Long = 0
 
         while(true){
-            delay(200)
+
+            delay(500)
+
             val bytesAvailable = serialPort.bytesAvailable()
 
             if(bytesAvailable > 0){
