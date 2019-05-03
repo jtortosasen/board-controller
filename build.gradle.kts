@@ -17,6 +17,7 @@ dependencies {
     implementation("io.ktor:ktor-network:1.1.3")
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
     implementation("org.koin:koin-core:2.0.0-rc-2")
+    implementation("com.beust:klaxon:5.0.1")
     compile("io.github.microutils:kotlin-logging:1.6.24")
     compile(group = "ch.qos.logback", name = "logback-classic", version = "1.2.3")
 }
