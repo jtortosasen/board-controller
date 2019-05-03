@@ -1,6 +1,6 @@
 import config.IConfiguration
 import config.Configuration
-import gpio.GpioManager
+import gpio.LedManager
 import tcp.input.CommandHandler
 import tcp.input.IHandler
 import org.koin.dsl.module
@@ -8,22 +8,16 @@ import tcp.input.IListener
 import tcp.input.TcpListener
 import tcp.output.ISender
 import tcp.output.TcpSender
-import serial.ISerialIO
 import serial.ISerialManager
-import serial.SerialIO
 import serial.SerialManager
 
-
+@kotlin.ExperimentalUnsignedTypes
 val koinModule = module {
 
-    single { GpioManager() }
+    single { LedManager() }
 
     single <IConfiguration> {
         Configuration()
-    }
-
-    single <ISerialIO> {
-        SerialIO()
     }
 
     single {
@@ -34,11 +28,10 @@ val koinModule = module {
         CommandHandler()
     }
 
-    single <ISerialManager> {
+    factory <ISerialManager> {
         SerialManager(
             handle = get<IHandler>() as CommandHandler,
             sender = get<ISender>() as TcpSender,
-            serialIO = get<ISerialIO>() as SerialIO,
             config = get<IConfiguration>() as Configuration
         )
     }

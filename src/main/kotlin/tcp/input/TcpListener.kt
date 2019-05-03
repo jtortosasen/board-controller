@@ -1,8 +1,7 @@
 package tcp.input
 
 import extensions.trim
-import gpio.GpioManager
-import gpio.GpioManager.Led
+import gpio.LedManager
 import kotlinx.coroutines.*
 import mu.KotlinLogging
 import org.koin.core.KoinComponent
@@ -15,6 +14,7 @@ import java.io.InputStream
 interface IListener {
     fun input(input: InputStream)
     suspend fun start(): Job
+    var led: LedManager
 }
 
 
@@ -22,6 +22,8 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
 
     private val logger = KotlinLogging.logger {}
     private lateinit var input: InputStream
+    override lateinit var led: LedManager
+
     override fun input(input: InputStream) {
         this.input = input
     }
@@ -41,6 +43,7 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
                 handler.handle(data)
                 delay(1000)
             } catch (e: Exception) {
+                led.ledColor = LedManager.Led.Red
                 logger.error { e }
                 break
             }
@@ -53,8 +56,7 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
             DataInputStream(this).read(array)
         } catch (e: IOException) {
             throw e
-        } catch (e: EOFException) {
-        }
+        } catch (e: EOFException) { }
         return array.trim()
     }
 }

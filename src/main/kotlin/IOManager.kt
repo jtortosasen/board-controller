@@ -1,6 +1,6 @@
 import config.IConfiguration
-import gpio.GpioManager
-import gpio.GpioManager.Led
+import gpio.LedManager
+import gpio.LedManager.Led
 
 import kotlinx.coroutines.*
 import mu.KotlinLogging
@@ -12,7 +12,7 @@ import serial.ISerialManager
 import java.net.Socket
 
 
-class IOManager(configuration: IConfiguration) : KoinComponent {
+class IOManager(val configuration: IConfiguration) : KoinComponent {
 
     private val logger = KotlinLogging.logger {}
 
@@ -22,7 +22,7 @@ class IOManager(configuration: IConfiguration) : KoinComponent {
     suspend fun start() {
 
         while (true) {
-            val led: GpioManager by inject()
+            val ledManager: LedManager by inject()
 
             try {
                 logger.debug { "Connecting to TCP $serverIP: $serverPort" }
@@ -35,11 +35,15 @@ class IOManager(configuration: IConfiguration) : KoinComponent {
                 val listener: IListener by inject()
                 val sender: ISender by inject()
 
-                led.ledColor = Led.LightBlue
-                serialManager.led = led
+                ledManager.ledColor = Led.LightBlue
+                serialManager.led = ledManager
+                sender.led = ledManager
+                listener.led = ledManager
 
                 listener.input(socket.getInputStream())
                 sender.output(socket.getOutputStream())
+                logger.debug { configuration.macAddress.toList().toString() }
+                sender.id(configuration.macAddress)
 
                 val serialJob = serialManager.start()
                 val listenerJob = listener.start()
@@ -49,10 +53,11 @@ class IOManager(configuration: IConfiguration) : KoinComponent {
 
                 listenerJob.join()
 
-                led.ledColor = Led.Red
+                ledManager.ledColor = Led.Red
 
                 logger.debug {"Canceling jobs"}
 
+                serialManager.close()
                 senderJob.cancelAndJoin()
                 serialJob.cancelAndJoin()
 
@@ -60,7 +65,7 @@ class IOManager(configuration: IConfiguration) : KoinComponent {
 
                 delay(10000L)
             } catch (e: Exception) {
-                led.ledColor = Led.Red
+                ledManager.ledColor = Led.Red
                 logger.error {"$e"}
                 delay(10000L)
             }
