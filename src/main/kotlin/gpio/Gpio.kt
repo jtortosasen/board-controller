@@ -1,78 +1,116 @@
-package gpio
 
-import kotlinx.coroutines.delay
-import java.io.FileOutputStream
-import java.io.OutputStreamWriter
+import java.io.*
 
+class Gpio(var pin: Int) {
 
-class GpioManager {
+    var port: String = "gpio$pin"
+    private val direction: String
+        get() {
+            try {
+                val p = Runtime.getRuntime().exec(arrayOf("su", "-c", "cat /sys/class/gpio/${this.port}/direction"))
+                p.waitFor()
+                val reader = BufferedReader(InputStreamReader(p.inputStream))
+                val text = StringBuilder()
+                var line: String?
 
-    enum class Led {
-        Blue, Red, Green, LightBlue
-    }
-    private val ledStateBlue: OutputStreamWriter
-    private val ledStateRed: OutputStreamWriter
-    private val ledStateGreen:OutputStreamWriter
-//    private val gpioAlert: OutputStreamWriter
-    var ledColor: Led = Led.Red
-    set(value) {
-        if(value != field){
-            turnOffLed(led = field)
-            turnOnLed(led = value)
-            field = value
+                while(true){
+                    line = reader.readLine()
+                    if(line == null)
+                        break
+                    text.append(line)
+                    text.append("\n")
+                }
+                return text.toString()
+            } catch (e: IOException) {
+                return ""
+            }
+
+        }
+    private val state: Int
+        get() {
+            try {
+                val p = Runtime.getRuntime().exec(arrayOf("su", "-c", "cat /sys/class/gpio/${this.port}/value"))
+                p.waitFor()
+                val reader = BufferedReader(InputStreamReader(p.inputStream))
+                val text = StringBuilder()
+                var line: String?
+                while(true){
+                    line = reader.readLine()
+                    if(line == null)
+                        break
+                    text.append(line)
+                    text.append("\n")
+                }
+                return try {
+                    val retour = text.toString()
+                    if (retour == "") {
+                        -1
+                    } else {
+                        Integer.parseInt(retour.substring(0, 1))
+                    }
+                } catch (nfe: NumberFormatException) {
+                    -1
+                }
+            } catch (e: IOException) {
+                return -1
+            }
+
+        }
+
+    fun switch(value: Int): Boolean {
+        return try {
+            Runtime.getRuntime().exec(arrayOf("su", "-c", "echo $value > /sys/class/gpio/${this.port}/value")).waitFor()
+            true
+        } catch (e: IOException) {
+            false
         }
     }
-
-    private fun bashCommand(command: String){
-        val processBuilder = ProcessBuilder()
-        processBuilder.command("bash", "-c", command)
-        try{
-            val process = processBuilder.start()
-            process.waitFor()
-        }catch (e: Exception){ }
-    }
-
-    init{
-        bashCommand(command = "echo 30 > /sys/class/gpio/export")
-        bashCommand(command = "echo 38 > /sys/class/gpio/export")
-        bashCommand(command = "echo 40 > /sys/class/gpio/export")
-        bashCommand(command = "echo out > /sys/class/gpio/gpio30/direction")
-        bashCommand(command = "echo out > /sys/class/gpio/gpio38/direction")
-        bashCommand(command = "echo out  > /sys/class/gpio/gpio40/direction")
-
-        ledStateRed = OutputStreamWriter(FileOutputStream("/sys/class/gpio/gpio38/value"))
-        ledStateBlue = OutputStreamWriter(FileOutputStream("/sys/class/gpio/gpio30/value"))
-        ledStateGreen = OutputStreamWriter(FileOutputStream("/sys/class/gpio/gpio40/value"))
-        ledColor = Led.Red
-    }
-
-    private fun turnOffLed(led: Led) = when(led){
-        Led.Blue -> ledStateBlue on false
-        Led.Red -> ledStateRed on false
-        Led.Green -> ledStateGreen on false
-        Led.LightBlue -> {
-            ledStateBlue on false
-            ledStateGreen on false
+    private fun direction(direction: String): Boolean {
+        return try {
+            Runtime.getRuntime().exec(arrayOf("su", "-c", "echo $direction > /sys/class/gpio/${this.port}/direction")).waitFor()
+            true
+        } catch (e: IOException) {
+            false
         }
     }
+    private fun activate(): Boolean {
+        return try {
+            Runtime.getRuntime().exec(arrayOf("su", "-c", "echo ${this.pin} > /sys/class/gpio/export")).waitFor()
+            true
+        } catch (e: IOException) {
+            false
+        }
+    }
+    private fun desactivate(): Boolean {
+        return try {
+            Runtime.getRuntime().exec(arrayOf("su", "-c", "echo ${this.pin} > /sys/class/gpio/unexport")).waitFor()
+            true
+        } catch (e: IOException) {
+            false
+        }
+    }
+    fun init(direction: String): Int {
+        var retour: Int
+        var ret: Boolean
 
-    private fun turnOnLed(led: Led) {
-        when(led){
-            Led.Blue -> ledStateBlue on true
-            Led.Red -> ledStateRed on true
-            Led.Green -> ledStateGreen on true
-            Led.LightBlue -> {
-                ledStateBlue on true
-                ledStateGreen on true
+        retour = state
+        if (retour == -1) {
+            ret = desactivate()
+            if (!ret) {
+                retour = -1
+            }
+            ret = activate()
+            if (!ret) {
+                retour = -2
             }
         }
-    }
-
-    private infix fun OutputStreamWriter.on(value: Boolean){
-        if(value){
-            write(1)
-        }else{
-            write(0)
+        val ret2 = this.direction
+        if (!ret2.contains(direction)) {
+            // set the direction (in or out)
+            ret = direction(direction)
+            if (ret == false) {
+                retour = -3
+            }
         }
     }
 }
