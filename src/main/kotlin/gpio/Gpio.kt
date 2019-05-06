@@ -1,21 +1,21 @@
-
 import java.io.*
 
 class Gpio(var pin: Int) {
 
     var port: String = "gpio$pin"
+
     private val direction: String
         get() {
             try {
-                val p = Runtime.getRuntime().exec(arrayOf("su", "-c", "cat /sys/class/gpio/${this.port}/direction"))
+                val p = Runtime.getRuntime().exec(arrayOf("/bin/bash", "-c", "cat /sys/class/gpio/${this.port}/direction"))
                 p.waitFor()
                 val reader = BufferedReader(InputStreamReader(p.inputStream))
                 val text = StringBuilder()
                 var line: String?
 
-                while(true){
+                while (true) {
                     line = reader.readLine()
-                    if(line == null)
+                    if (line == null)
                         break
                     text.append(line)
                     text.append("\n")
@@ -29,14 +29,14 @@ class Gpio(var pin: Int) {
     private val state: Int
         get() {
             try {
-                val p = Runtime.getRuntime().exec(arrayOf("su", "-c", "cat /sys/class/gpio/${this.port}/value"))
+                val p = Runtime.getRuntime().exec(arrayOf("/bin/bash", "-c", "cat /sys/class/gpio/${this.port}/value"))
                 p.waitFor()
                 val reader = BufferedReader(InputStreamReader(p.inputStream))
                 val text = StringBuilder()
                 var line: String?
-                while(true){
+                while (true) {
                     line = reader.readLine()
-                    if(line == null)
+                    if (line == null)
                         break
                     text.append(line)
                     text.append("\n")
@@ -59,36 +59,52 @@ class Gpio(var pin: Int) {
 
     fun switch(value: Int): Boolean {
         return try {
-            Runtime.getRuntime().exec(arrayOf("su", "-c", "echo $value > /sys/class/gpio/${this.port}/value")).waitFor()
+            Runtime.getRuntime().exec(arrayOf("/bin/bash", "-c", "echo $value > /sys/class/gpio/${this.port}/value")).waitFor()
             true
         } catch (e: IOException) {
             false
         }
     }
+
+    fun switchWithOutputStream(value: Int): Boolean {
+        return try {
+            val fos = FileOutputStream(File("/sys/class/gpio/${this.port}/value"))
+            fos.write('0'.toInt() + value)
+            fos.close()
+            true
+        } catch (e: IOException){
+            false
+        }
+    }
+
     private fun direction(direction: String): Boolean {
         return try {
-            Runtime.getRuntime().exec(arrayOf("su", "-c", "echo $direction > /sys/class/gpio/${this.port}/direction")).waitFor()
+            Runtime.getRuntime().exec(arrayOf("/bin/bash", "-c", "echo $direction > /sys/class/gpio/${this.port}/direction"))
+                .waitFor()
             true
         } catch (e: IOException) {
             false
         }
     }
+
     private fun activate(): Boolean {
         return try {
-            Runtime.getRuntime().exec(arrayOf("su", "-c", "echo ${this.pin} > /sys/class/gpio/export")).waitFor()
+            Runtime.getRuntime().exec(arrayOf("/bin/bash", "-c", "echo ${this.pin} > /sys/class/gpio/export")).waitFor()
             true
         } catch (e: IOException) {
             false
         }
     }
+
     private fun desactivate(): Boolean {
         return try {
-            Runtime.getRuntime().exec(arrayOf("su", "-c", "echo ${this.pin} > /sys/class/gpio/unexport")).waitFor()
+            Runtime.getRuntime().exec(arrayOf("/bin/bash", "-c", "echo ${this.pin} > /sys/class/gpio/unexport")).waitFor()
             true
         } catch (e: IOException) {
             false
         }
     }
+
     fun init(direction: String): Int {
         var retour: Int
         var ret: Boolean
@@ -112,5 +128,6 @@ class Gpio(var pin: Int) {
                 retour = -3
             }
         }
+        return retour
     }
 }

@@ -11,7 +11,15 @@ class LedManager {
     private val ledStateBlue = Gpio(30)
     private val ledStateRed = Gpio(38)
     private val ledStateGreen = Gpio(40)
-//    private val gpioAlert: OutputStreamWriter
+
+    /*
+    * GPIO PIRULO
+    */
+
+//    private val ledStateBlue = Gpio(25)
+//    private val ledStateRed = Gpio(26)
+//    private val ledStateGreen = Gpio(27)
+
     @Volatile
     var ledColor: Led = Led.Red
     set(value) {
@@ -35,23 +43,23 @@ class LedManager {
     }
 
     private fun turnOffLed(led: Led) = when(led){
-        Led.Blue -> ledStateBlue.switch(0)
-        Led.Red -> ledStateRed.switch(0)
-        Led.Green -> ledStateGreen.switch(0)
+        Led.Blue -> ledStateBlue.switchWithOutputStream(0)
+        Led.Red -> ledStateRed.switchWithOutputStream(0)
+        Led.Green -> ledStateGreen.switchWithOutputStream(0)
         Led.LightBlue -> {
-            ledStateBlue.switch(0)
-            ledStateGreen.switch(0)
+            ledStateBlue.switchWithOutputStream(0)
+            ledStateGreen.switchWithOutputStream(0)
         }
     }
 
     private fun turnOnLed(led: Led) {
         when(led){
-            Led.Blue -> ledStateBlue.switch(1)
-            Led.Red -> ledStateRed.switch(1)
-            Led.Green -> ledStateGreen.switch(1)
+            Led.Blue -> ledStateBlue.switchWithOutputStream(1)
+            Led.Red -> ledStateRed.switchWithOutputStream(1)
+            Led.Green -> ledStateGreen.switchWithOutputStream(1)
             Led.LightBlue -> {
-                ledStateBlue.switch(1)
-                ledStateGreen.switch(1)
+                ledStateBlue.switchWithOutputStream(1)
+                ledStateGreen.switchWithOutputStream(1)
             }
         }
     }
