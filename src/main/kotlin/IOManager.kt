@@ -27,9 +27,9 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
             try {
                 logger.debug { "Connecting to TCP $serverIP: $serverPort" }
 
-                val socket = Socket(serverIP, serverPort.toInt())
+                val socket = Socket(serverIP, serverPort)
                 socket.getOutputStream().write("Gestimaq\r\n".toByteArray(Charsets.US_ASCII) ,0, "Gestimaq\r\n".toByteArray(Charsets.US_ASCII).size)
-
+                socket.soTimeout = 100000
 
                 val serialManager: ISerialManager by inject()
                 val listener: IListener by inject()
