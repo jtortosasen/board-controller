@@ -12,10 +12,11 @@ import java.lang.Exception
 class Application : KoinComponent {
 
     private val logger = KotlinLogging.logger {}
+    private val settingsPath = "/home/artik/settings.json"
 
     suspend fun main() {
         try {
-            val json = Klaxon().parse<SettingsJson>(File("settings.json"))
+            val json = Klaxon().parse<SettingsJson>(File(settingsPath))
 
             startKoin {
                 printLogger()
