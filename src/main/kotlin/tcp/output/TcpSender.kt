@@ -53,7 +53,6 @@ class TcpSender : ISender, KoinComponent {
 
     override suspend fun start() = CoroutineScope(Dispatchers.IO).launch {
         output.write(byteArrayOf(0x00, 0x0b))
-//        output.write(byteArrayOf(0x55, 0xff.toByte(), 0x11, 0xff.toByte(), 0x11, 0x03, 0x37, 0x73, 0x23))
         output.write(applyHeader(byteArrayOf(0x55, 0xff.toByte(), 0x11, 0xff.toByte(), 0x11, 0x03), mac))
         while (isActive) {
             try {

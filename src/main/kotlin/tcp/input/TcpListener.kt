@@ -31,6 +31,7 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
     override suspend fun start() = CoroutineScope(Dispatchers.IO).launch {
         while (isActive) {
             try {
+
                 val data = input.readCommand()
                 if (data.isEmpty())
                     break
@@ -56,7 +57,7 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
             DataInputStream(this).read(array)
         } catch (e: IOException) {
             throw e
-        } catch (e: EOFException) { }
+        } catch (e: Exception) { }
         return array.trim()
     }
 }
