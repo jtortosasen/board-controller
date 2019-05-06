@@ -13,6 +13,7 @@ interface IHandler {
     suspend fun handleIO(command: Command.IO)
 }
 
+class NackException: Exception("Placa no identificada")
 
 class CommandHandler: IHandler {
 
@@ -32,7 +33,7 @@ class CommandHandler: IHandler {
         is Command.IdMacACK     -> {}
         is Command.IdMacNACK    -> IdNack()
         is Command.OpenLed      -> openLed(rgb = command.color)
-        is Command.CloseLed     -> TODO()
+        is Command.CloseLed     -> closeLed()
         is Command.Restart      -> restart()
         is Command.Update       -> update()
         is Command.PlayVideo    -> playVideo()
@@ -44,28 +45,23 @@ class CommandHandler: IHandler {
         channel.send(command)
     }
 
-    fun IdNack() {
-        throw Exception("Placa no identificada")
+    private fun IdNack() {
+        throw NackException()
     }
 
-    fun openLed(rgb: ByteArray) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    private fun openLed(rgb: ByteArray) {
     }
 
-    fun restart() {
-        shutdown()
+    private fun closeLed(){
     }
 
-    fun update() {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    private fun update() {
     }
 
-    fun playVideo() {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    private fun playVideo() {
     }
 
-    fun updateVideo() {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    private fun updateVideo() {
     }
 
     private fun ByteArray.extractCommand(): Command {
@@ -121,7 +117,7 @@ class CommandHandler: IHandler {
     }
 
     @Throws(RuntimeException::class, IOException::class)
-    fun shutdown() {
+    private fun restart() {
         val shutdownCommand: String
         val operatingSystem = System.getProperty("os.name")
 
