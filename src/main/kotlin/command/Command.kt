@@ -40,8 +40,8 @@ sealed class Command {
     class Restart : Command()
     class IdMacACK : Command()
     class IdMacNACK : Command()
+    class SwapProgram: Command()
     class None : Command()
-
 
     companion object {
         fun get(command: Byte, content: ByteArray = byteArrayOf(0)): Command {
@@ -60,6 +60,7 @@ sealed class Command {
                 0x99.toByte() -> Restart()
                 0x15.toByte() -> IdMacNACK()
                 0x06.toByte() -> IdMacACK()
+                0xaf.toByte() -> SwapProgram()
                 else -> None()
             }
         }
