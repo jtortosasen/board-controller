@@ -1,6 +1,6 @@
 import config.IConfiguration
 import config.Configuration
-import gpio.LedManager
+import gpio.LedState
 import tcp.input.CommandHandler
 import tcp.input.IHandler
 import org.koin.dsl.module
@@ -14,7 +14,7 @@ import serial.SerialManager
 @kotlin.ExperimentalUnsignedTypes
 val koinModule = module {
 
-    single { LedManager() }
+    single { LedState() }
 
     single <IConfiguration> {
         Configuration()

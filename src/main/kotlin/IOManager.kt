@@ -1,6 +1,6 @@
 import config.IConfiguration
 import gpio.LedManager
-import gpio.LedManager.Led
+import gpio.LedState
 
 import kotlinx.coroutines.*
 import mu.KotlinLogging
@@ -22,7 +22,7 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
     suspend fun start() {
 
         while (true) {
-            val ledManager: LedManager by inject()
+            val ledState: LedState by inject()
 
             try {
                 logger.debug { "Connecting to TCP $serverIP: $serverPort" }
@@ -35,10 +35,10 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
                 val listener: IListener by inject()
                 val sender: ISender by inject()
 
-                ledManager.ledColor = Led.LightBlue
-                serialManager.led = ledManager
-                sender.led = ledManager
-                listener.led = ledManager
+                ledState.color = LedManager.LedColors.LightBlue
+                serialManager.led = ledState
+                sender.led = ledState
+                listener.led = ledState
 
                 listener.input(socket.getInputStream())
                 sender.output(socket.getOutputStream())
@@ -53,7 +53,7 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
 
                 listenerJob.join()
 
-                ledManager.ledColor = Led.Red
+                ledState.color = LedManager.LedColors.Red
 
                 logger.debug {"Canceling jobs"}
 
@@ -65,7 +65,7 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
 
                 delay(10000L)
             } catch (e: Exception) {
-                ledManager.ledColor = Led.Red
+                ledState.color = LedManager.LedColors.Red
                 logger.error {"$e"}
                 delay(10000L)
             }

@@ -3,7 +3,7 @@ package serial
 import command.Command
 import config.IConfiguration
 import gpio.LedManager
-import gpio.LedManager.Led
+import gpio.LedState
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import mu.KotlinLogging
@@ -14,7 +14,7 @@ import tcp.output.ISender
 interface ISerialManager {
     suspend fun start(): Job
     fun close(): Boolean
-    var led: LedManager
+    var led: LedState
 }
 
 @kotlin.ExperimentalUnsignedTypes
@@ -30,7 +30,7 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
 
     private lateinit var state: Command.IO
     private lateinit var masterJob: Job
-    override lateinit var led: LedManager
+    override lateinit var led: LedState
 
     init {
         handle.channel(channel = handleChannel)
@@ -56,7 +56,6 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
         serialIO.open()
         while (isActive) {
             val command = handleChannel.receive()
-            led.ledColor = Led.Green
             routeCommand(command)
         }
         logger.debug { "Clossing serial port" }
@@ -64,7 +63,6 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
     }
 
     private suspend fun listenSerial() = CoroutineScope(Dispatchers.IO).launch {
-//        logger.debug { "Listening serial" }
         while (isActive) {
             val data = serialIO.read()
             logger.debug { "Recieved from serial:" }
@@ -76,6 +74,7 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
             dataWithHeader.forEach { print(it.toUByte().toString(16)) }
             println()
             senderChannel.send(dataWithHeader)
+            led.color = LedManager.LedColors.LightBlue
         }
         serialIO.close()
     }
@@ -92,12 +91,12 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
     }
 
     private suspend fun routeCommand(command: Command.IO) = when (command) {
-        is Command.IO.OpenSlave9600B8N1 -> openPort(command)
+        is Command.IO.OpenSlave9600B8N1  -> openPort(command)
         is Command.IO.OpenSlave19200B8N1 -> openPort(command)
         is Command.IO.OpenSlave19200B9N1 -> openPort(command)
-        is Command.IO.CloseSlave -> closePort(command)
-        is Command.IO.SendSlave -> sendData(command)
-        is Command.IO.MasterMode -> startMasterMode(command)
+        is Command.IO.CloseSlave         -> closePort(command)
+        is Command.IO.SendSlave          -> writeData(command)
+        is Command.IO.MasterMode         -> startMasterMode(command)
     }
 
     private suspend fun openPort(command: Command.IO) {
@@ -127,7 +126,6 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
     }
 
     private fun setPortParams(command: Command.IO) {
-//        logger.debug { "Setting serial params" }
         configurePort(command.baudRate, command.dataBits, command.parity, command.stopBits)
     }
 
@@ -136,7 +134,7 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
         setPortParams(command)
     }
 
-    private suspend fun sendData(command: Command.IO.SendSlave) {
+    private suspend fun writeData(command: Command.IO.SendSlave) {
         setCommand(command)
         logger.debug { "command content" }
         command.content.forEach { print(it.toUByte().toString(16)) }
@@ -145,6 +143,7 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
     }
 
     private fun write(byteArray: ByteArray) {
+        led.color = LedManager.LedColors.Green
         serialIO.write(byteArray)
     }
 
@@ -158,7 +157,7 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
     }
 
     private suspend fun sasRoutine() {
-//
+
 //        serialIO.flush()
 //        serialIO.mode9Bit = true
 //        serialIO.write(byteArrayOf(0x80.toByte(), 0x81.toByte()))

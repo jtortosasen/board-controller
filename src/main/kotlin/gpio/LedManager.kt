@@ -2,64 +2,56 @@ package gpio
 
 import Gpio
 
-
-class LedManager {
-
-    enum class Led {
-        Blue, Red, Green, LightBlue
-    }
-    private val ledStateBlue = Gpio(30)
-    private val ledStateRed = Gpio(38)
-    private val ledStateGreen = Gpio(40)
-
-    /*
-    * GPIO PIRULO
-    */
-
-//    private val ledStateBlue = Gpio(25)
-//    private val ledStateRed = Gpio(26)
-//    private val ledStateGreen = Gpio(27)
-
-    @Volatile
-    var ledColor: Led = Led.Red
-    set(value) {
-        if(value != field){
-            turnOffLed(led = field)
-            turnOnLed(led = value)
-        }
-        field = value
+abstract class LedManager(val RGB:  Array<Gpio>){
+    enum class LedColors {
+        Blue, Red, Green, LightBlue, White, Off, Yellow
     }
 
-    init {
-        ledStateRed.init("out")
-        ledStateGreen.init("out")
-        ledStateBlue.init("out")
-
-        ledStateBlue.switch(0)
-        ledStateGreen.switch(0)
-        ledStateRed.switch(0)
-
-        ledStateRed.switch(1)
-    }
-
-    private fun turnOffLed(led: Led) = when(led){
-        Led.Blue -> ledStateBlue.switchWithOutputStream(0)
-        Led.Red -> ledStateRed.switchWithOutputStream(0)
-        Led.Green -> ledStateGreen.switchWithOutputStream(0)
-        Led.LightBlue -> {
-            ledStateBlue.switchWithOutputStream(0)
-            ledStateGreen.switchWithOutputStream(0)
+    init{
+        RGB.forEach {
+            it.init("out")
+            it.switch(1)
+            it.switch(0)
         }
     }
 
-    private fun turnOnLed(led: Led) {
-        when(led){
-            Led.Blue -> ledStateBlue.switchWithOutputStream(1)
-            Led.Red -> ledStateRed.switchWithOutputStream(1)
-            Led.Green -> ledStateGreen.switchWithOutputStream(1)
-            Led.LightBlue -> {
-                ledStateBlue.switchWithOutputStream(1)
-                ledStateGreen.switchWithOutputStream(1)
+    protected fun turnOn(led: LedColors){
+        when (led) {
+            LedColors.Red   -> RGB[0].switchWithOutputStream(1)
+            LedColors.Green -> RGB[1].switchWithOutputStream(1)
+            LedColors.Blue  -> RGB[2].switchWithOutputStream(1)
+            LedColors.LightBlue -> {
+                turnOn(LedColors.Blue)
+                turnOn(LedColors.Green)
+            }
+            LedColors.White -> {
+                turnOn(LedColors.Blue)
+                turnOn(LedColors.Green)
+                turnOn(LedColors.Red)
+            }
+            LedColors.Yellow -> {
+                turnOn(LedColors.Green)
+                turnOn(LedColors.Red)
+            }
+        }
+    }
+    protected fun turnOff(led: LedColors){
+        when (led) {
+            LedColors.Red   -> RGB[0].switchWithOutputStream(0)
+            LedColors.Green -> RGB[1].switchWithOutputStream(0)
+            LedColors.Blue  -> RGB[2].switchWithOutputStream(0)
+            LedColors.LightBlue -> {
+                turnOff(LedColors.Blue)
+                turnOff(LedColors.Green)
+            }
+            LedColors.White -> {
+                turnOff(LedColors.Blue)
+                turnOff(LedColors.Green)
+                turnOff(LedColors.Red)
+            }
+            LedColors.Yellow -> {
+                turnOff(LedColors.Green)
+                turnOff(LedColors.Red)
             }
         }
     }

@@ -1,7 +1,7 @@
 package tcp.output
 
 import gpio.LedManager
-import gpio.LedManager.Led
+import gpio.LedState
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import mu.KotlinLogging
@@ -14,7 +14,7 @@ interface ISender {
     fun output(output: OutputStream)
     suspend fun start(): Job
     fun id(id: ByteArray)
-    var led: LedManager
+    var led: LedState
 }
 
 
@@ -37,7 +37,7 @@ class TcpSender : ISender, KoinComponent {
         this.channel = channel
     }
 
-    override lateinit var led: LedManager
+    override lateinit var led: LedState
 
     private fun applyHeader(first: ByteArray, second: ByteArray): ByteArray {
         val arrayWithHeader = ByteArray(first.size + second.size)
@@ -50,14 +50,12 @@ class TcpSender : ISender, KoinComponent {
         return arrayWithHeader
     }
 
-
     override suspend fun start() = CoroutineScope(Dispatchers.IO).launch {
-        output.write(byteArrayOf(0x00, 0x0b))
-        output.write(applyHeader(byteArrayOf(0x55, 0xff.toByte(), 0x11, 0xff.toByte(), 0x11, 0x03), mac))
+        identifyMacAddress()
         while (isActive) {
             try {
                 val byteArray = channel.receive()
-                led.ledColor = Led.LightBlue
+                led.color = LedManager.LedColors.LightBlue
 
                 val size = byteArray.size + 2
                 logger.debug { "size: $size" }
@@ -77,5 +75,10 @@ class TcpSender : ISender, KoinComponent {
                 break
             }
         }
+    }
+
+    private fun identifyMacAddress(){
+        output.write(byteArrayOf(0x00, 0x0b))
+        output.write(applyHeader(byteArrayOf(0x55, 0xff.toByte(), 0x11, 0xff.toByte(), 0x11, 0x03), mac))
     }
 }
