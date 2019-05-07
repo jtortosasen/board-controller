@@ -1,6 +1,8 @@
 package serial
 
 import com.fazecast.jSerialComm.SerialPort
+import gpio.LedManager
+import gpio.LedState
 import kotlinx.coroutines.delay
 import java.io.InputStream
 import java.io.OutputStream
@@ -15,6 +17,7 @@ interface ISerialIO {
     suspend fun flush()
     fun open()
     fun close(): Boolean
+    var led: LedState
 }
 
 @kotlin.ExperimentalUnsignedTypes
@@ -35,6 +38,7 @@ class SerialIO: ISerialIO {
     }
 
     val parityArray = (0..255).map { generatePair(it) }
+    override lateinit var led: LedState
 
     fun generatePair(n: Int) : Array<String> {
         return if (Integer.bitCount(n) % 2 == 0) arrayOf(odd, even) else arrayOf(even, odd)
@@ -122,6 +126,8 @@ class SerialIO: ISerialIO {
             val bytesAvailable = serialPort.bytesAvailable()
 
             if(bytesAvailable > 0){
+                led.color = LedManager.LedColors.Green
+
                 val chunkBuffer = ByteArray(bytesAvailable)
 
                 if(serialPort.readBytes(chunkBuffer, chunkBuffer.size.toLong()) <= 0)
@@ -137,6 +143,7 @@ class SerialIO: ISerialIO {
                     continue
                 if((System.currentTimeMillis() - startTime) < 100 || buffer.size <= 0 )
                     continue
+                led.color = LedManager.LedColors.LightBlue
                 return buffer.toByteArray()
             }
         }

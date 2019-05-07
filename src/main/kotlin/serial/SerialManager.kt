@@ -52,6 +52,7 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
 
     override suspend fun start() = CoroutineScope(Dispatchers.IO).launch {
         serialIO.comPort(config.serialPort)
+        serialIO.led = led
         serialIO.close()
         serialIO.open()
         while (isActive) {
@@ -143,7 +144,6 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
     }
 
     private fun write(byteArray: ByteArray) {
-        led.color = LedManager.LedColors.Green
         serialIO.write(byteArray)
     }
 
