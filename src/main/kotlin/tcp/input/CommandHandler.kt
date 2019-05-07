@@ -19,7 +19,7 @@ class NackException: Exception("Placa no identificada")
 
 class CommandHandler: IHandler {
 
-    val ledStrip = LedStrip()
+    private val ledStrip = LedStrip()
 
     private lateinit var channel: SendChannel<Command.IO>
     override fun channel(channel: SendChannel<Command.IO>) {
@@ -29,7 +29,6 @@ class CommandHandler: IHandler {
     override suspend fun handle(data: ByteArray) {
         handleCommand(data.extractCommand())
     }
-
 
     private suspend fun handleCommand(command: Command) = when (command) {
         is Command.IO               -> handleIO(command)
