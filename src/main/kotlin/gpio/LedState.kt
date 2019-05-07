@@ -3,7 +3,7 @@ package gpio
 import Gpio
 
 
-class LedState: LedManager(RGB = arrayOf(Gpio(38), Gpio(40), Gpio(30))) {
+class LedState: LedManager(red = Gpio(38), green = Gpio(40), blue = Gpio(30)) {
 
     @Volatile
     var color: LedColors = LedColors.Red
@@ -16,7 +16,7 @@ class LedState: LedManager(RGB = arrayOf(Gpio(38), Gpio(40), Gpio(30))) {
         }
 
     init{
-        RGB[0].switch(1)
+        rgb[0].switch(1)
     }
 
 }

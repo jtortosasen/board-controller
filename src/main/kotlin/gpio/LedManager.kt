@@ -2,13 +2,15 @@ package gpio
 
 import Gpio
 
-abstract class LedManager(val RGB:  Array<Gpio>){
+abstract class LedManager(red: Gpio, green: Gpio, blue: Gpio){
     enum class LedColors {
         Blue, Red, Green, LightBlue, White, Off, Yellow
     }
 
+    protected val rgb: Array<Gpio> = arrayOf(red, green, blue)
+
     init{
-        RGB.forEach {
+        rgb.forEach {
             it.init("out")
             it.switch(1)
             it.switch(0)
@@ -17,9 +19,9 @@ abstract class LedManager(val RGB:  Array<Gpio>){
 
     protected fun turnOn(led: LedColors){
         when (led) {
-            LedColors.Red   -> RGB[0].switchWithOutputStream(1)
-            LedColors.Green -> RGB[1].switchWithOutputStream(1)
-            LedColors.Blue  -> RGB[2].switchWithOutputStream(1)
+            LedColors.Red   -> rgb[0].switchWithOutputStream(1)
+            LedColors.Green -> rgb[1].switchWithOutputStream(1)
+            LedColors.Blue  -> rgb[2].switchWithOutputStream(1)
             LedColors.LightBlue -> {
                 turnOn(LedColors.Blue)
                 turnOn(LedColors.Green)
@@ -33,13 +35,14 @@ abstract class LedManager(val RGB:  Array<Gpio>){
                 turnOn(LedColors.Green)
                 turnOn(LedColors.Red)
             }
+            LedColors.Off -> {}
         }
     }
     protected fun turnOff(led: LedColors){
         when (led) {
-            LedColors.Red   -> RGB[0].switchWithOutputStream(0)
-            LedColors.Green -> RGB[1].switchWithOutputStream(0)
-            LedColors.Blue  -> RGB[2].switchWithOutputStream(0)
+            LedColors.Red   -> rgb[0].switchWithOutputStream(0)
+            LedColors.Green -> rgb[1].switchWithOutputStream(0)
+            LedColors.Blue  -> rgb[2].switchWithOutputStream(0)
             LedColors.LightBlue -> {
                 turnOff(LedColors.Blue)
                 turnOff(LedColors.Green)
@@ -53,6 +56,7 @@ abstract class LedManager(val RGB:  Array<Gpio>){
                 turnOff(LedColors.Green)
                 turnOff(LedColors.Red)
             }
+            LedColors.Off -> {}
         }
     }
 }

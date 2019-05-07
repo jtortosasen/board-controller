@@ -3,7 +3,7 @@ package gpio
 import Gpio
 import mu.KotlinLogging
 
-class LedStrip: LedManager(RGB = arrayOf(Gpio(26), Gpio(27), Gpio(25))) {
+class LedStrip: LedManager(red = Gpio(26), green = Gpio(27), blue = Gpio(25)) {
 
     @Volatile
     var color: LedColors = LedColors.Off
