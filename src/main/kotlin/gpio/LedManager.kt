@@ -22,6 +22,7 @@ abstract class LedManager(red: Gpio, green: Gpio, blue: Gpio){
             LedColors.Red   -> rgb[0].switchWithOutputStream(1)
             LedColors.Green -> rgb[1].switchWithOutputStream(1)
             LedColors.Blue  -> rgb[2].switchWithOutputStream(1)
+
             LedColors.LightBlue -> {
                 turnOn(LedColors.Blue)
                 turnOn(LedColors.Green)
@@ -43,6 +44,7 @@ abstract class LedManager(red: Gpio, green: Gpio, blue: Gpio){
             LedColors.Red   -> rgb[0].switchWithOutputStream(0)
             LedColors.Green -> rgb[1].switchWithOutputStream(0)
             LedColors.Blue  -> rgb[2].switchWithOutputStream(0)
+
             LedColors.LightBlue -> {
                 turnOff(LedColors.Blue)
                 turnOff(LedColors.Green)
