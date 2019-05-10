@@ -5,15 +5,20 @@ import mu.KotlinLogging
 import org.koin.core.KoinComponent
 import org.koin.core.context.startKoin
 import org.koin.core.inject
+import updater.Updater
 import java.io.File
 import java.lang.Exception
 
 
 class Application : KoinComponent {
 
+    private val VERSION = 1.0
+
     private val logger = KotlinLogging.logger {}
     private val settingsPath = "/home/artik/settings.json"
 
+
+    @ExperimentalUnsignedTypes
     suspend fun main() {
         try {
             val json = Klaxon().parse<SettingsJson>(File(settingsPath))
@@ -32,14 +37,23 @@ class Application : KoinComponent {
                 config.serverIp = it.serverAddress
                 config.serverPort = it.serverPort
             }
-            networkManager.start()
 
+            if(!Updater().updateStable(currentVersion = VERSION))
+                networkManager.start()
+            else
+                restart()
         } catch (e: Exception) {
-            logger.error { e }
+            logger.error(e) { e }
         }
+    }
+
+    private fun restart() {
+        Runtime.getRuntime().exec("reboot")
+        System.exit(0)
     }
 }
 
+@ExperimentalUnsignedTypes
 suspend fun main() {
     Application().main()
 }

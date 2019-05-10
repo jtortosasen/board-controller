@@ -9,6 +9,8 @@ import kotlinx.coroutines.channels.Channel
 import mu.KotlinLogging
 import tcp.input.IHandler
 import tcp.output.ISender
+import java.io.IOException
+import java.lang.Exception
 
 
 interface ISerialManager {
@@ -65,17 +67,21 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
 
     private suspend fun listenSerial() = CoroutineScope(Dispatchers.IO).launch {
         while (isActive) {
-            val data = serialIO.read()
-            logger.debug { "Recieved from serial:" }
-            data.forEach { print(it.toString(16)) }
-            println()
-            val header = byteArrayOf(0x55, 0xFF.toByte(), 0x45, 0xFF.toByte(), 0x45, 0x03)
-            val dataWithHeader = applyHeader(header, data)
-            logger.debug { "##Recieved from serial WITH HEADER:" }
-            dataWithHeader.forEach { print(it.toUByte().toString(16)) }
-            println()
-            senderChannel.send(dataWithHeader)
-            led.color = LedManager.LedColors.LightBlue
+            try{
+                val data = serialIO.read()
+                logger.debug { "Recieved from serial:" }
+                data.forEach { print(it.toString(16)) }
+                println()
+                val header = byteArrayOf(0x55, 0xFF.toByte(), 0x45, 0xFF.toByte(), 0x45, 0x03)
+                val dataWithHeader = applyHeader(header, data)
+                logger.debug { "##Recieved from serial WITH HEADER:" }
+                dataWithHeader.forEach { print(it.toUByte().toString(16)) }
+                println()
+                senderChannel.send(dataWithHeader)
+                led.color = LedManager.LedColors.LightBlue
+            }catch (e: Exception){
+                logger.error(e) { e }
+            }
         }
         serialIO.close()
     }
@@ -144,7 +150,11 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
     }
 
     private fun write(byteArray: ByteArray) {
-        serialIO.write(byteArray)
+        try{
+            serialIO.write(byteArray)
+        }catch (e: Exception){
+            logger.error(e) { e }
+        }
     }
 
     private suspend fun startMasterMode(command: Command.IO.MasterMode) {

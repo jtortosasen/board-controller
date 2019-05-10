@@ -4,6 +4,7 @@ import com.fazecast.jSerialComm.SerialPort
 import gpio.LedManager
 import gpio.LedState
 import kotlinx.coroutines.delay
+import mu.KotlinLogging
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -36,11 +37,13 @@ class SerialIO: ISerialIO {
         bashCommand(command = "stty -F /dev/ttyAMA4 19200 cs8 -cstopb ignpar parenb $value")
         field = value
     }
-
-    val parityArray = (0..255).map { generatePair(it) }
+    private val parityArray = (0..255).map { generatePair(it) }
     override lateinit var led: LedState
 
-    fun generatePair(n: Int) : Array<String> {
+    private val logger = KotlinLogging.logger { }
+
+
+    private fun generatePair(n: Int) : Array<String> {
         return if (Integer.bitCount(n) % 2 == 0) arrayOf(odd, even) else arrayOf(even, odd)
     }
 
@@ -50,7 +53,9 @@ class SerialIO: ISerialIO {
         try{
             val process = processBuilder.start()
             process.waitFor()
-        }catch (e: Exception){ }
+        }catch (e: Exception){
+            logger.error(e) { e }
+        }
     }
 
     override fun comPort(serialPortName: String) {

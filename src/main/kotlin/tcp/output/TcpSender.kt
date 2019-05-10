@@ -70,8 +70,7 @@ class TcpSender : ISender, KoinComponent {
                 output.write(array)
                 delay(1000)
             } catch (e: Exception) {
-                logger.debug {"Can't send to server"}
-                e.printStackTrace()
+                logger.error(e) { e }
                 break
             }
         }

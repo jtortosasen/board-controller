@@ -27,6 +27,7 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
         this.input = input
     }
 
+    @kotlin.ExperimentalUnsignedTypes
     override suspend fun start() = CoroutineScope(Dispatchers.IO).launch {
         while (isActive) {
             try {
@@ -44,7 +45,7 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
                 delay(1000)
             } catch (e: Exception) {
                 led.color = LedManager.LedColors.Red
-                logger.error { e }
+                logger.error(e) { e }
                 break
             }
         }
