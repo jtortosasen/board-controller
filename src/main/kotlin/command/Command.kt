@@ -95,6 +95,9 @@ fun ByteArray.extractCommand(): Command {
     val command34 = byteArrayOf(0x55, 0xFF.toByte(), 0x34.toByte(), 0xFF.toByte(), 0x34.toByte(), 0x03)
     val command35 = byteArrayOf(0x55, 0xFF.toByte(), 0x35.toByte(), 0xFF.toByte(), 0x35.toByte(), 0x03)
     val command39 = byteArrayOf(0x55, 0xFF.toByte(), 0x39.toByte(), 0xFF.toByte(), 0x39.toByte(), 0x03)
+    val commande0 = byteArrayOf(0x55, 0xFF.toByte(), 0xe0.toByte(), 0xFF.toByte(), 0xe0.toByte(), 0x03)
+    val command99 = byteArrayOf(0x55, 0xFF.toByte(), 0x99.toByte(), 0xFF.toByte(), 0x99.toByte(), 0x03)
+    val commandaf = byteArrayOf(0x55, 0xFF.toByte(), 0xaf.toByte(), 0xFF.toByte(), 0xaf.toByte(), 0x03)
 
     if (array.size == 1) {
         return Command.get(command = array[0])
@@ -139,12 +142,21 @@ fun ByteArray.extractCommand(): Command {
             array have command39 -> {
                 return Command.get(command = 0x39.toByte())
             }
+            array have commande0 -> {
+                return Command.get(command = 0xe0.toByte())
+            }
+            array have command99 -> {
+                return Command.get(command = 0x99.toByte())
+            }
+            array have commandaf -> {
+                return Command.get(command = 0xaf.toByte())
+            }
         }
     }
     return Command.get(0)
 }
 
-infix fun ByteArray.have(inner: ByteArray): Boolean{
+private infix fun ByteArray.have(inner: ByteArray): Boolean{
     val outer = this
     if(outer.contains(inner[0])){
         var index = outer.indexOf(inner[0])
