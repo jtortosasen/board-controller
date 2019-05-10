@@ -66,7 +66,7 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
                 delay(10000L)
             } catch (e: Exception) {
                 ledState.color = LedManager.LedColors.Red
-                logger.error {"$e"}
+                logger.error(e) {e}
                 delay(10000L)
             }
         }
