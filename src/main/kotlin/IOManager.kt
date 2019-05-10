@@ -9,6 +9,7 @@ import org.koin.core.inject
 import tcp.input.IListener
 import tcp.output.ISender
 import serial.ISerialManager
+import java.net.InetSocketAddress
 import java.net.Socket
 
 
@@ -18,6 +19,7 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
 
     private val serverIP = configuration.serverIp
     private val serverPort = configuration.serverPort
+    private val socketTimeout = 10000
 
     suspend fun start() {
 
@@ -27,9 +29,10 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
             try {
                 logger.debug { "Connecting to TCP $serverIP: $serverPort" }
 
-                val socket = Socket(serverIP, serverPort)
+                val socket = Socket()
+                socket.connect(InetSocketAddress(serverIP, serverPort), socketTimeout)
                 socket.getOutputStream().write("Gestimaq\r\n".toByteArray(Charsets.US_ASCII) ,0, "Gestimaq\r\n".toByteArray(Charsets.US_ASCII).size)
-                socket.soTimeout = 100000
+                socket.soTimeout = socketTimeout
 
                 val serialManager: ISerialManager by inject()
                 val listener: IListener by inject()
