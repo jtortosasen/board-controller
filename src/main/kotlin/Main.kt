@@ -16,7 +16,7 @@ class Application : KoinComponent {
 
     private val logger = KotlinLogging.logger {}
     private val settingsPath = "/home/artik/settings.json"
-
+    lateinit var jarName: String
 
     @ExperimentalUnsignedTypes
     suspend fun main() {
@@ -38,8 +38,10 @@ class Application : KoinComponent {
                 config.serverPort = it.serverPort
             }
 
-            if(!Updater().updateStable(currentVersion = VERSION))
+            if(!Updater().updateStable(currentVersion = VERSION, currentJarName = jarName)){
+                logger.info { "Starting application, no updates available" }
                 networkManager.start()
+            }
             else
                 restart()
         } catch (e: Exception) {
@@ -54,6 +56,11 @@ class Application : KoinComponent {
 }
 
 @ExperimentalUnsignedTypes
-suspend fun main() {
-    Application().main()
+suspend fun main(args : Array<String>) {
+    if(args.size == 1){
+        val app = Application()
+        app.jarName = args[0]
+        app.main()
+    }
+    println("PASS NAME OF JAR AS AN ARGUMENT")
 }
