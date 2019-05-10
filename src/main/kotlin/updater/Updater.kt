@@ -44,18 +44,23 @@ class Updater: KoinComponent{
             client.connect(ipAddress, port)
             if (!client.login(username, password) )
                 return false
-            if (!client.listNames().contains(remoteFilename))
+            if (!client.listNames().contains(remoteFilename)){
+                client.logout()
                 return false
+            }
 
             client.setFileType(FTPClient.BINARY_FILE_TYPE)
             client.changeWorkingDirectory("testing")
 
             val fos = FileOutputStream(homePath + filename)
-            return client.retrieveFile(remoteFilename, fos)
+            val status = client.retrieveFile(remoteFilename, fos)
+            client.logout()
+            return status
 
         } catch (e: Exception) {
             logger.error(e) { e }
         }
+        client.logout()
         return false
     }
 
@@ -70,6 +75,7 @@ class Updater: KoinComponent{
 
             if (!client.login(username, password)){
                 logger.debug { "CANT LOGIN" }
+                client.logout()
                 return false
             }
             logger.debug { "LOGIN SUCCESFULL" }
@@ -80,6 +86,7 @@ class Updater: KoinComponent{
             client.listNames().forEach { print(it) }
             if (!client.listNames().contains(manifestName)){
                 logger.debug { "$manifestName doesn't find" }
+                client.logout()
                 return false
             }
 
@@ -87,6 +94,7 @@ class Updater: KoinComponent{
 
             if(!client.retrieveFile(manifestName, manifestOutputStream)){
                 logger.debug { "Can't download manifest" }
+                client.logout()
                 return false
             }
             logger.debug { "Manifest downloaded" }
@@ -99,16 +107,21 @@ class Updater: KoinComponent{
             if(currentVersion.toFloat() < json.currentVersion && client.listNames().contains(json.jarFile)) {
                 logger.debug { "inferior version and contain jarfile" }
                 logger.debug { "$homePath$filename${json.currentVersion}.jar" }
-                if(currentJarName == "$filename${json.currentVersion}.jar")
+                if(currentJarName == "$filename${json.currentVersion}.jar"){
+                    client.logout()
                     return false
+                }
 
                 val jarOutputStream = FileOutputStream("$homePath$filename${json.currentVersion}.jar")
 
-                return client.retrieveFile(json.jarFile, jarOutputStream)
+                val status = client.retrieveFile(json.jarFile, jarOutputStream)
+                client.logout()
+                return status
             }
         } catch (e: Exception) {
             logger.error(e) {e}
         }
+        client.logout()
         return false
     }
 }
