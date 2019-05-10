@@ -20,6 +20,7 @@ dependencies {
     implementation("com.beust:klaxon:5.0.1")
     compile("io.github.microutils:kotlin-logging:1.6.24")
     compile(group = "ch.qos.logback", name = "logback-classic", version = "1.2.3")
+    compile(group = "commons-net", name = "commons-net", version = "3.6")
 }
 
 tasks.withType<KotlinCompile> {
