@@ -36,11 +36,7 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
                     break
                 led.color = LedManager.LedColors.LightBlue
                 logger.debug { "Recieved data: " }
-                data.forEach {
-                    val a = it
-                    print(a.toUByte().toString(16))
-                }
-                println()
+                logger.debug { data.map { it.toUByte().toString(16) } }
                 handler.handle(data)
                 delay(1000)
             } catch (e: Exception) {

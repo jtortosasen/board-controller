@@ -18,6 +18,7 @@ interface ISender {
 }
 
 
+@ExperimentalUnsignedTypes
 class TcpSender : ISender, KoinComponent {
 
     private val logger = KotlinLogging.logger {  }
@@ -64,9 +65,8 @@ class TcpSender : ISender, KoinComponent {
 
                 val array = applyHeader(byteArrayOf(size2.toByte(), size1.toByte()), byteArray)
 
-                logger.debug { "Sending:" }
-                array.forEach { print(it.toString(16)) }
-                println()
+                logger.debug { "Sending to server:" }
+                logger.debug { array.map { it.toUByte().toString(16) } }
                 output.write(array)
                 delay(1000)
             } catch (e: Exception) {

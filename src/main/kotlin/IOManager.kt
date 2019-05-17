@@ -19,7 +19,7 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
 
     private val serverIP = configuration.serverIp
     private val serverPort = configuration.serverPort
-    private val socketTimeout = 10000
+    private val socketTimeout = 100_000
 
     suspend fun start() {
 
@@ -30,7 +30,8 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
                 logger.debug { "Connecting to TCP $serverIP: $serverPort" }
 
                 val socket = Socket()
-                socket.connect(InetSocketAddress(serverIP, serverPort), socketTimeout)
+                socket.connect(InetSocketAddress(serverIP, serverPort), 10_000)
+                logger.info { "Connected to server $serverIP:$serverPort" }
                 socket.getOutputStream().write("Gestimaq\r\n".toByteArray(Charsets.US_ASCII) ,0, "Gestimaq\r\n".toByteArray(Charsets.US_ASCII).size)
                 socket.soTimeout = socketTimeout
 

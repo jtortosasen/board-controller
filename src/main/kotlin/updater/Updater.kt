@@ -13,7 +13,6 @@ import java.util.*
 import java.io.File
 
 
-
 data class ManifestJson(
     @Json(name = "current_version")
     val currentVersion: Double,
@@ -52,15 +51,15 @@ class Updater: KoinComponent{
             client.setFileType(FTPClient.BINARY_FILE_TYPE)
             client.changeWorkingDirectory("testing")
 
-            val fos = FileOutputStream(homePath + filename)
+            val fos = FileOutputStream("$homePath$filename")
             val status = client.retrieveFile(remoteFilename, fos)
             client.logout()
             return status
 
         } catch (e: Exception) {
             logger.error(e) { e }
+            client.logout()
         }
-        client.logout()
         return false
     }
 
@@ -74,18 +73,17 @@ class Updater: KoinComponent{
             client.connect(ipAddress, port)
 
             if (!client.login(username, password)){
-                logger.debug { "CANT LOGIN" }
+                logger.warn { "Can't loggin to FTP" }
                 client.logout()
                 return false
             }
-            logger.debug { "LOGIN SUCCESFULL" }
             client.setFileType(FTPClient.BINARY_FILE_TYPE)
             client.changeWorkingDirectory("stable")
 
             logger.debug { manifestName }
             client.listNames().forEach { print(it) }
             if (!client.listNames().contains(manifestName)){
-                logger.debug { "$manifestName doesn't find" }
+                logger.warn { "$manifestName doesn't find" }
                 client.logout()
                 return false
             }
@@ -93,7 +91,7 @@ class Updater: KoinComponent{
             val manifestOutputStream = FileOutputStream(File("manifest"))
 
             if(!client.retrieveFile(manifestName, manifestOutputStream)){
-                logger.debug { "Can't download manifest" }
+                logger.warn { "Can't download manifest" }
                 client.logout()
                 return false
             }
@@ -102,26 +100,25 @@ class Updater: KoinComponent{
 
             val json = Klaxon().parse<ManifestJson>(File("manifest")) ?: return false
 
-            logger.debug { "JSON READ SUCCESFULLY" }
+            logger.info { "Manifest parsed successfully" }
 
             if(currentVersion.toFloat() < json.currentVersion && client.listNames().contains(json.jarFile)) {
-                logger.debug { "inferior version and contain jarfile" }
-                logger.debug { "$homePath$filename${json.currentVersion}.jar" }
+                logger.info { "Inferior version and contain jarfile" }
                 if(currentJarName == "$filename${json.currentVersion}.jar"){
                     client.logout()
                     return false
                 }
 
                 val jarOutputStream = FileOutputStream("$homePath$filename${json.currentVersion}.jar")
-
                 val status = client.retrieveFile(json.jarFile, jarOutputStream)
+
                 client.logout()
                 return status
             }
         } catch (e: Exception) {
             logger.error(e) {e}
+            client.logout()
         }
-        client.logout()
         return false
     }
 }
