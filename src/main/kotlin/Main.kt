@@ -37,13 +37,19 @@ class Application : KoinComponent {
                 config.serverIp = it.serverAddress
                 config.serverPort = it.serverPort
             }
-
-            if(!Updater().updateStable(currentVersion = VERSION, currentJarName = jarName)){
+            var updateSuccess = false
+            try{
+                updateSuccess = Updater().updateStable(currentVersion = VERSION, currentJarName = jarName)
+            }catch (e: Exception){
+                logger.error(e) { e }
+            }
+            if(!updateSuccess){
                 logger.info { "Starting application, no updates available" }
                 networkManager.start()
             }
             else
                 restart()
+
         } catch (e: Exception) {
             logger.error(e) { e }
         }
@@ -61,6 +67,7 @@ suspend fun main(args : Array<String>) {
         val app = Application()
         app.jarName = args[0]
         app.main()
-    }
-    println("PASS NAME OF JAR AS AN ARGUMENT")
+    }else
+        println("PASS NAME OF JAR AS AN ARGUMENT")
+    println("BYE :)")
 }
