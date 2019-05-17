@@ -9,7 +9,6 @@ import kotlinx.coroutines.channels.Channel
 import mu.KotlinLogging
 import tcp.input.IHandler
 import tcp.output.ISender
-import java.io.IOException
 import java.lang.Exception
 
 
@@ -23,29 +22,30 @@ interface ISerialManager {
 class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguration) :
     ISerialManager {
 
-    private val logger = KotlinLogging.logger { }
-
-    private val serialIO : SerialIO = SerialIO()
-
     private val handleChannel = Channel<Command.IO>(Channel.UNLIMITED)
     private val senderChannel = Channel<ByteArray>(Channel.UNLIMITED)
-
-    private lateinit var state: Command.IO
-    private lateinit var masterJob: Job
-    override lateinit var led: LedState
 
     init {
         handle.channel(channel = handleChannel)
         sender.channel(channel = senderChannel)
     }
 
-    private val masterMode: Boolean
+    private val logger = KotlinLogging.logger { }
+
+    private val serialIO : SerialIO = SerialIO()
+
+    private lateinit var state: Command.IO
+    private lateinit var masterJob: Job
+    private lateinit var listenerSerialJob: Job
+    private val isMasterActivated: Boolean
         get() {
             if (this::state.isInitialized)
                 if (state is Command.IO.MasterMode)
                     return true
             return false
         }
+
+    override lateinit var led: LedState
 
 
     override fun close(): Boolean {
@@ -68,16 +68,7 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
     private suspend fun listenSerial() = CoroutineScope(Dispatchers.IO).launch {
         while (isActive) {
             try{
-                val data = serialIO.read()
-                logger.debug { "Recieved from serial:" }
-                data.forEach { print(it.toString(16)) }
-                println()
-                val header = byteArrayOf(0x55, 0xFF.toByte(), 0x45, 0xFF.toByte(), 0x45, 0x03)
-                val dataWithHeader = applyHeader(header, data)
-                logger.debug { "##Recieved from serial WITH HEADER:" }
-                dataWithHeader.forEach { print(it.toUByte().toString(16)) }
-                println()
-                senderChannel.send(dataWithHeader)
+                send(serialIO.read())
                 led.color = LedManager.LedColors.LightBlue
             }catch (e: Exception){
                 logger.error(e) { e }
@@ -98,19 +89,19 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
     }
 
     private suspend fun routeCommand(command: Command.IO) = when (command) {
-        is Command.IO.OpenSlave9600B8N1  -> openPort(command)
-        is Command.IO.OpenSlave19200B8N1 -> openPort(command)
-        is Command.IO.OpenSlave19200B9N1 -> openPort(command)
+        is Command.IO.OpenSlave9600B8N1  -> openPortAsSlave(command)
+        is Command.IO.OpenSlave19200B8N1 -> openPortAsSlave(command)
+        is Command.IO.OpenSlave19200B9N1 -> openPortAsSlave(command)
         is Command.IO.CloseSlave         -> closePort(command)
         is Command.IO.SendSlave          -> writeData(command)
         is Command.IO.MasterMode         -> startMasterMode(command)
     }
 
-    private suspend fun openPort(command: Command.IO) {
+    private suspend fun openPortAsSlave(command: Command.IO) {
         setCommand(command)
         setPortParams(command)
         senderChannel.send(byteArrayOf(0x06))
-        listenSerial()
+        listenerSerialJob = listenSerial()
     }
 
     private fun configurePort(baudRate: Int, dataBits: Int, parity: Int, stopBits: Int) {
@@ -123,12 +114,21 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
     }
 
     private suspend fun setCommand(command: Command.IO) {
-        if (masterMode) {
+        if (isMasterActivated) {
             logger.debug { "Stopping master mode" }
             state = command
             masterJob.cancelAndJoin()
-        } else
+        } else{
+            if(this::listenerSerialJob.isInitialized)
+                if(
+                    (command is Command.IO.OpenSlave19200B8N1
+                    || command is Command.IO.OpenSlave19200B8N1
+                    || command is Command.IO.OpenSlave19200B8N1)
+                    && listenerSerialJob.isActive){
+                    listenerSerialJob.cancel()
+                }
             logger.debug { "Setting command (no previous master mode)" }
+        }
         state = command
     }
 
@@ -143,9 +143,10 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
 
     private suspend fun writeData(command: Command.IO.SendSlave) {
         setCommand(command)
-        logger.debug { "command content" }
-        command.content.forEach { print(it.toUByte().toString(16)) }
-        println()
+        logger.debug { "Writing command content to serial com" }
+        logger.debug {
+            command.content.map { it.toUByte().toString(16) }
+        }
         write(command.content)
     }
 
@@ -167,22 +168,47 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
     }
 
     private suspend fun sasRoutine() {
+        withContext(Dispatchers.IO){
+            serialIO.mode9Bit = true
+            while (isActive){
+                try{
+                    serialIO.write(byteArrayOf(0x80.toByte(), 0x81.toByte()))
+                    serialIO.read()
+                    serialIO.write(byteArrayOf(0x01.toByte(), 0x54.toByte()))
+                    serialIO.read()
+                    serialIO.write(
+                        byteArrayOf(
+                            0x01.toByte(), 0x6f.toByte(), 0x12.toByte(), 0x00.toByte(),
+                            0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x01.toByte(),
+                            0x00.toByte(), 0x03.toByte(), 0x00.toByte(), 0x04.toByte(),
+                            0x00.toByte(), 0x08.toByte(), 0x00.toByte(), 0x09.toByte(),
+                            0x00.toByte(), 0x0b.toByte(), 0x00.toByte(), 0x6e.toByte(),
+                            0x00.toByte(), 0x0A.toByte(), 0x88.toByte()
+                        )
+                    )
+                    send(serialIO.read(), command = 0x93.toByte())
+                    led.color = LedManager.LedColors.LightBlue
+                }catch (e: Exception){
+                    logger.error(e) { e }
+                }
+                delay(10000)
+            }
+            serialIO.mode9Bit = false
+        }
+    }
 
-//        serialIO.flush()
-//        serialIO.mode9Bit = true
-//        serialIO.write(byteArrayOf(0x80.toByte(), 0x81.toByte()))
-//        val array = serialIO.read()
-//        serialIO.write(byteArrayOf(0x01.toByte(), 0x54.toByte()))
-//        serialIO.write(
-//            byteArrayOf(
-//                0x01.toByte(), 0x6f.toByte(), 0x12.toByte(), 0x00.toByte(),
-//                0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x01.toByte(),
-//                0x00.toByte(), 0x03.toByte(), 0x00.toByte(), 0x04.toByte(),
-//                0x00.toByte(), 0x08.toByte(), 0x00.toByte(), 0x09.toByte(),
-//                0x00.toByte(), 0x0b.toByte(), 0x00.toByte(), 0x6e.toByte(),
-//                0x00.toByte(), 0x0A.toByte(), 0x88.toByte()
-//            )
-//        )
+    private suspend fun send(data: ByteArray, command: Byte = 0x45){
+
+        val headerSlave = byteArrayOf(0x55, 0xFF.toByte(), command, 0xFF.toByte(), command, 0x03)
+        val headerMaster = byteArrayOf(0x55, 0xE0.toByte(), command, 0xE0.toByte(), command, 0x03)
+        val dataWithHeader: ByteArray
+        if(isMasterActivated)
+            dataWithHeader = applyHeader(headerMaster, data)
+        else
+            dataWithHeader = applyHeader(headerSlave, data)
+        logger.debug { "Recieved from serial WITH HEADER:" }
+        logger.debug { dataWithHeader.map { it.toUByte().toString(16) } }
+        senderChannel.send(dataWithHeader)
     }
 
 
@@ -191,7 +217,7 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
 //        val waitTime: Long = 20
 //        val comPort = SerialPort.getCommPorts()[1]
 //        println(comPort.descriptivePortName)
-//        if (comPort.openPort()) {
+//        if (comPort.openPortAsSlave()) {
 
 //
 //            val input: InputStream = comPort.inputStream
