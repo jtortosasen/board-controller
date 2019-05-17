@@ -18,5 +18,4 @@ class LedState: LedManager(red = Gpio(38), green = Gpio(40), blue = Gpio(30)) {
     init{
         rgb[0].switch(1)
     }
-
 }
