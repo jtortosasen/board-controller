@@ -3,6 +3,10 @@ package command
 import com.fazecast.jSerialComm.SerialPort
 import java.util.*
 
+/**
+ * Cada comando contiene información sobre qué acción debe hacer el programa
+ * [IO] se relaciona con el I/O del puerto serie, apertura de serie con sus parámetros envio de datos y modo master o propio
+ */
 sealed class Command {
 
     sealed class IO(val baudRate: Int = 0, val dataBits: Int = 0, val parity: Int = 0, val stopBits: Int = 0) : Command() {
@@ -49,6 +53,11 @@ sealed class Command {
     class SwapProgram: Command()
     class None : Command()
 
+    /**
+     * @param command el byte del comando
+     * @param content el contenido si lo hay
+     * @return el comando
+     */
     companion object {
         fun get(command: Byte, content: ByteArray = byteArrayOf(0)): Command {
             return when (command) {
@@ -78,7 +87,9 @@ sealed class Command {
     }
 }
 
-
+/**
+ * @return [Command]
+ */
 fun ByteArray.extractCommand(): Command {
     val array = this
 
@@ -156,6 +167,11 @@ fun ByteArray.extractCommand(): Command {
     return Command.get(0)
 }
 
+/**
+ * Extrae el comando del array
+ * @param inner ByteArray que se necesita para saber si [this] contiene [inner]
+ * @return true si [inner] está en [this]
+ */
 private infix fun ByteArray.have(inner: ByteArray): Boolean{
     val outer = this
     if(outer.contains(inner[0])){

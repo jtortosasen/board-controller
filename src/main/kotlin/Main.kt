@@ -9,29 +9,34 @@ import updater.Updater
 import java.io.File
 import java.lang.Exception
 
-
+/**
+ * Inicia el módulo de DI
+ * Carga las opciones del fichero [settingsPath] y da valores al componente de configuración para ser leído por el resto del programa
+ * Comprueba si hay actualizaciones y reinicia en caso de descargarse un nuevo jar
+ * Inicia [IOManager] y se engancha a él
+ */
 class Application : KoinComponent {
 
     private val VERSION = 1.0
 
     private val logger = KotlinLogging.logger {}
-    private val settingsPath = "/home/artik/settings.json"
-    lateinit var jarName: String
+                private val settingsPath = "/home/artik/settings.json"
+                lateinit var jarName: String
 
-    @ExperimentalUnsignedTypes
-    suspend fun main() {
-        try {
-            val json = Klaxon().parse<SettingsJson>(File(settingsPath))
+                @ExperimentalUnsignedTypes
+                suspend fun main() {
+                    try {
+                        val json = Klaxon().parse<SettingsJson>(File(settingsPath))
 
-            startKoin {
-                printLogger()
-                modules(koinModule)
-            }
+                        startKoin {
+                            printLogger()
+                            modules(koinModule)
+                        }
 
-            val networkManager: IOManager by inject()
-            val config: IConfiguration by inject()
+                        val networkManager: IOManager by inject()
+                        val config: IConfiguration by inject()
 
-            json?.let {
+                        json?.let {
                 config.pathMacAddress = it.macPath
                 config.serialPort = it.serialPort
                 config.serverIp = it.serverAddress
@@ -61,6 +66,10 @@ class Application : KoinComponent {
     }
 }
 
+/**
+ * Punto de entrada del programa
+ * @param args max len 1, recibe el nombre del .jar
+ */
 @ExperimentalUnsignedTypes
 suspend fun main(args : Array<String>) {
     if(args.size == 1){

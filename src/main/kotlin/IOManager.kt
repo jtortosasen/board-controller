@@ -12,7 +12,10 @@ import serial.ISerialManager
 import java.net.InetSocketAddress
 import java.net.Socket
 
-
+/**
+ * IOManager se encarga de gestionar el ciclo de vida de los componentes TCP y serial del programa
+ * @property configuration Configuración general inyectada por DI
+ */
 class IOManager(val configuration: IConfiguration) : KoinComponent {
 
     private val logger = KotlinLogging.logger {}
@@ -21,6 +24,12 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
     private val serverPort = configuration.serverPort
     private val socketTimeout = 100_000
 
+    /**
+     * Loop principal
+     * Conecta al server, instancia los componentes para recibir y enviar por TCP y el que se gestiona el puerto serie.
+     * Al ser el punto de inicio, desde aquí se inyectan las dependencias para controlar el led y el stream del socket TCP
+     * Inicia los componentes recibiendo un job y se engancha a ellos, si cualquiera de los 3 falla, terminan y el loop vuelve a empezar.
+     */
     suspend fun start() {
 
         while (true) {
@@ -53,7 +62,7 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
                 val listenerJob = listener.start()
                 val senderJob = sender.start()
 
-                logger.debug { "Running jobs"}
+                logger.debug {"Running jobs"}
 
                 listenerJob.join()
 

@@ -12,7 +12,9 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.io.File
 
-
+/**
+ *
+ */
 data class ManifestJson(
     @Json(name = "current_version")
     val currentVersion: Double,
@@ -32,6 +34,10 @@ class Updater: KoinComponent{
     private val logger = KotlinLogging.logger {}
 
 
+    /**
+     * Actualiza el programa apuntando al directorio Testing de un servidor FTP alojado en el servidor
+     * @return status
+     */
     fun updateTesting(): Boolean{
         val datetime = SimpleDateFormat("yyyyMMddHHmmss").format(Date())
         val remoteFilename = "board-controller.jar"
@@ -63,6 +69,14 @@ class Updater: KoinComponent{
         return false
     }
 
+
+    /**
+     * Actualiza el programa apuntando al directorio Stable de un servidor FTP alojado en el servidor
+     * Recibe dos parametros que necesita para descartar descargar un ejecutable antiguo o entrar en un loop infinito
+     * @param currentVersion versión actual del programa
+     * @param currentJarName nombre del jar que está en ejecución
+     * @return status
+     */
     fun updateStable(currentVersion: Double, currentJarName: String): Boolean{
         val manifestName = "manifest.json"
         val filename = "board-controller"

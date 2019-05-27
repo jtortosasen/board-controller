@@ -5,13 +5,7 @@ import command.extractCommand
 import gpio.LedStrip
 import gpio.LedManager
 import kotlinx.coroutines.channels.SendChannel
-import mu.KotlinLogging
-import org.apache.commons.net.ftp.FTPClient
 import updater.Updater
-import java.io.FileOutputStream
-import java.io.IOException
-import java.text.SimpleDateFormat
-import java.util.*
 
 
 interface IHandler {
@@ -21,14 +15,18 @@ interface IHandler {
 }
 
 class NackException: Exception("Placa no identificada")
-
+/**
+ * Extrae el comando de los datos recibidos y enruta
+ * Recibe [ledStrip] para controlar la tira de leds de premio
+ * Recibe [handlerIOChannel] para enviar al componente IO todos los comandos que sean de tipo [Command.IO]
+ */
 class CommandHandler: IHandler {
 
     private val ledStrip = LedStrip()
 
-    private lateinit var channel: SendChannel<Command.IO>
+    private lateinit var handlerIOChannel: SendChannel<Command.IO>
     override fun channel(channel: SendChannel<Command.IO>) {
-        this.channel = channel
+        this.handlerIOChannel = channel
     }
 
     override suspend fun handle(data: ByteArray) {
@@ -56,10 +54,19 @@ class CommandHandler: IHandler {
         }
     }
 
+    /**
+     * Envia por un channel el comando extraído, al otro lado del channel está el receptor que se encargará del IO.
+     * Este channel es no-bloqueante
+     */
     override suspend fun handleIO(command: Command.IO) {
-        channel.send(command)
+        handlerIOChannel.send(command)
     }
 
+    /**
+     * Si la placa no está identificada entonces lanzamos excepción para que el ciclo principal se interrumpa
+     * y la placa vuelva a intentar conectarse.
+     * @throws NackException
+     */
     private fun idNack() {
         throw NackException()
     }
@@ -69,6 +76,10 @@ class CommandHandler: IHandler {
         System.exit(0)
     }
 
+    /**
+     * Desactiva el servicio board.service y activa el servicio board-mono.service
+     * Al reiniciar la placa ahora iniciará el servicio board-mono.service
+     */
     private fun swapProgram(){
         Runtime.getRuntime().exec("systemctl disable board.service").waitFor()
         Runtime.getRuntime().exec("systemctl enable board-mono.service").waitFor()

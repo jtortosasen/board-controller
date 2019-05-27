@@ -17,6 +17,12 @@ interface IListener {
     var led: LedState
 }
 
+/**
+ * Se encarga de estar a la escucha al stream que recibe, detecta las conexiones cerradas por el servidor.
+ * Recibe [handler] gestiona los bytes recibidos
+ * Recibe [input]
+ * Recibe [led] se encarga de marcar el estado usando el led de notificaciones de la placa
+ */
 class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
 
     private val logger = KotlinLogging.logger {}
@@ -27,6 +33,10 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
         this.input = input
     }
 
+    /**
+     * Lee mediante una función de extension [readCommand] y envía lo recibido al handler
+     * Si recibe un [Throwable] finaliza el loop
+     */
     @kotlin.ExperimentalUnsignedTypes
     override suspend fun start() = CoroutineScope(Dispatchers.IO).launch {
         while (isActive) {
@@ -47,6 +57,10 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
         }
     }
 
+    /**
+     * Recoge un máximo de 255 bytes
+     * @return array usando [trim] para eliminar los 0 restantes
+     */
     private fun InputStream.readCommand(): ByteArray {
         val array = ByteArray(255)
         try {
