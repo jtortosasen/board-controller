@@ -17,7 +17,7 @@ import java.lang.Exception
  */
 class Application : KoinComponent {
 
-    private val VERSION = 1.0
+    private val VERSION = 1.1
 
     private val logger = KotlinLogging.logger {}
                 private val settingsPath = "/home/artik/settings.json"
@@ -25,6 +25,7 @@ class Application : KoinComponent {
 
                 @ExperimentalUnsignedTypes
                 suspend fun main() {
+                    logger.info { VERSION }
                     try {
                         val json = Klaxon().parse<SettingsJson>(File(settingsPath))
 
