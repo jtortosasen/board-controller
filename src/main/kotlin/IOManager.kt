@@ -32,6 +32,8 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
      */
     suspend fun start() {
 
+        var connectionTries = 0
+
         while (true) {
             val ledState: LedState by inject()
 
@@ -80,6 +82,11 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
             } catch (e: Exception) {
                 ledState.color = LedManager.LedColors.Red
                 logger.error(e) {e}
+                if(connectionTries > 30){
+                    Runtime.getRuntime().exec("reboot")
+                    System.exit(0)
+                }
+                connectionTries++
                 delay(10000L)
             }
         }
