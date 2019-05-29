@@ -68,7 +68,6 @@ class TcpSender : ISender, KoinComponent {
                 logger.debug { "Sending to server:" }
                 logger.debug { array.map { it.toUByte().toString(16) } }
                 output.write(array)
-                delay(1000)
             } catch (e: Exception) {
                 logger.error(e) { e }
                 break
