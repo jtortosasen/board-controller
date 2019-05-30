@@ -45,6 +45,7 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
                 logger.info { "Connected to server $serverIP:$serverPort" }
                 socket.getOutputStream().write("Gestimaq\r\n".toByteArray(Charsets.US_ASCII) ,0, "Gestimaq\r\n".toByteArray(Charsets.US_ASCII).size)
                 socket.soTimeout = socketTimeout
+                connectionTries = 0
 
                 val serialManager: ISerialManager by inject()
                 val listener: IListener by inject()
@@ -83,9 +84,11 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
                 ledState.color = LedManager.LedColors.Red
                 logger.error(e) {e}
                 if(connectionTries > 30){
+                    logger.info { "Max connection attemps reached, rebooting" }
                     Runtime.getRuntime().exec("reboot")
                     System.exit(0)
                 }
+                logger.info { "Connection attempts: $connectionTries" }
                 connectionTries++
                 delay(10000L)
             }
