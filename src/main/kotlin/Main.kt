@@ -17,7 +17,7 @@ import java.lang.Exception
  */
 class Application : KoinComponent {
 
-    private val VERSION = 1.1
+    private val VERSION = 1.3
 
     private val logger = KotlinLogging.logger {}
                 private val settingsPath = "/home/artik/settings.json"
