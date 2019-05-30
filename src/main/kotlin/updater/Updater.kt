@@ -11,6 +11,7 @@ import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
 import java.io.File
+import java.util.jar.JarFile
 
 /**
  *
@@ -77,6 +78,7 @@ class Updater: KoinComponent{
      * @param currentJarName nombre del jar que está en ejecución
      * @return status
      */
+
     fun updateStable(currentVersion: Double, currentJarName: String): Boolean{
         val manifestName = "manifest.json"
         val filename = "board-controller"
@@ -84,6 +86,9 @@ class Updater: KoinComponent{
         val client = FTPClient()
 
         try {
+            client.connectTimeout = 5000
+            client.defaultTimeout = 5000
+
             client.connect(ipAddress, port)
 
             if (!client.login(username, password)){
@@ -112,22 +117,35 @@ class Updater: KoinComponent{
             logger.debug { "Manifest downloaded" }
             manifestOutputStream.close()
 
-            val json = Klaxon().parse<ManifestJson>(File("manifest")) ?: return false
+            val manifest = Klaxon().parse<ManifestJson>(File("manifest")) ?: return false
 
             logger.info { "Manifest parsed successfully" }
 
-            if(currentVersion.toFloat() < json.currentVersion && client.listNames().contains(json.jarFile)) {
-                logger.info { "Inferior version and contain jarfile" }
-                if(currentJarName == "$filename${json.currentVersion}.jar"){
+            if(currentVersion.toFloat() < manifest.currentVersion && client.listNames().contains(manifest.jarFile)) {
+                logger.info { "New version available" }
+                if(currentJarName == "$filename${manifest.currentVersion}.jar"){
                     client.logout()
+                    logger.info { "Actual version has same name, aborting..." }
                     return false
                 }
+                logger.info { "Updating..." }
 
-                val jarOutputStream = FileOutputStream("$homePath$filename${json.currentVersion}.jar")
-                val status = client.retrieveFile(json.jarFile, jarOutputStream)
-
+                val jarOutputStream = FileOutputStream("$homePath$filename${manifest.currentVersion}.jar")
+                val status = client.retrieveFile(manifest.jarFile, jarOutputStream)
                 client.logout()
-                return status
+
+                if(File("$homePath$filename${manifest.currentVersion}.jar").exists() && status){
+                    try{
+                        val jarFile = JarFile("$homePath$filename${manifest.currentVersion}.jar")
+                        logger.debug { jarFile.manifest }
+                        return true
+                    }catch (e: Exception){
+                        logger.info { "Update file corrupted" }
+                        logger.error(e) { e }
+                    }
+                }else{
+                    return false
+                }
             }
         } catch (e: Exception) {
             logger.error(e) {e}
