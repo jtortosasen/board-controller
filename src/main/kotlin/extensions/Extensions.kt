@@ -26,5 +26,5 @@ fun ByteArray.trim(n: Int): ByteArray {
 //    while (i >= 0 && this[i] == 0.toByte()) {
 //        --i
 //    }
-    return this.copyOfRange(0, n + 1)
+    return this.copyOfRange(0, n)
 }
