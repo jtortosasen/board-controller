@@ -63,11 +63,12 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
      */
     private fun InputStream.readCommand(): ByteArray {
         val array = ByteArray(255)
+        var readed = 0
         try {
-            DataInputStream(this).read(array)
+            readed = DataInputStream(this).read(array)
         } catch (e: IOException) {
             throw e
         } catch (e: Exception) { }
-        return array.trim()
+        return array.trim(readed)
     }
 }
