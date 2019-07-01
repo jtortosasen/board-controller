@@ -74,10 +74,12 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
                 logger.debug {"Canceling jobs"}
 
                 serialManager.close()
+                socket.close()
                 senderJob.cancelAndJoin()
                 serialJob.cancelAndJoin()
 
                 logger.debug {"All jobs canceled"}
+//                socket.close()
 
                 delay(10000L)
             } catch (e: Exception) {
