@@ -49,6 +49,10 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
                 logger.debug { data.map { it.toUByte().toString(16) } }
                 handler.handle(data)
                 delay(1000)
+            }catch (e: NackException){
+                logger.warn { "NackException, Board not identified" }
+                Runtime.getRuntime().exec("reboot")
+                System.exit(0)
             } catch (e: Exception) {
                 led.color = LedManager.LedColors.Red
                 logger.error(e) { e }
