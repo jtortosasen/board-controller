@@ -1,5 +1,6 @@
 package config
 
+import mu.KotlinLogging
 import java.io.File
 import java.lang.Exception
 
@@ -16,6 +17,9 @@ interface IConfiguration{
 }
 
 class Configuration : IConfiguration {
+
+    private val logger = KotlinLogging.logger {  }
+
     override var serverIp: String = ""
     override var serverPort: Int = 0
     override var serialPort: String = ""
@@ -36,7 +40,8 @@ class Configuration : IConfiguration {
                 }
                 return data
             }catch (e: Exception){
-                return byteArrayOf(0)
+                logger.error { e }
+                return byteArrayOf(0x37, 0x7F, 0xEA.toByte())
             }
         }
     override val ftpUser: String = "uXDo5ghxpQ8L"
