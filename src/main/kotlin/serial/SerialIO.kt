@@ -143,7 +143,7 @@ class SerialIO: ISerialIO {
             }else{
                 if (!readFlag)
                     continue
-                if((System.currentTimeMillis() - startTime) < 50 || buffer.size <= 0 )
+                if((System.currentTimeMillis() - startTime) < 100 || buffer.size <= 0 )
                     continue
 
                 led.color = LedManager.LedColors.LightBlue
