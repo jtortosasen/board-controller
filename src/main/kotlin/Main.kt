@@ -20,6 +20,7 @@ class Application : KoinComponent {
 
     private val logger = KotlinLogging.logger {}
     private val settingsPath = "/home/artik/settings.json"
+//    private val settingsPath = "settings.json"
     lateinit var jarName: String
 
     @ExperimentalUnsignedTypes
@@ -51,8 +52,9 @@ class Application : KoinComponent {
             if (!updateSuccess) {
                 logger.info { "Starting application, no updates available" }
                 networkManager.start()
-            } else
+            } else{
                 restart()
+            }
 
         } catch (e: Exception) {
             logger.error(e) { e }

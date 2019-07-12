@@ -43,6 +43,7 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
                 val socket = Socket()
                 socket.connect(InetSocketAddress(serverIP, serverPort), 10_000)
                 logger.info { "Connected to server $serverIP:$serverPort" }
+                // Enviamos Gestimaq para que el servidor detecte que no es una conexion "fantasma" o antigua
                 socket.getOutputStream().write("Gestimaq\r\n".toByteArray(Charsets.US_ASCII) ,0, "Gestimaq\r\n".toByteArray(Charsets.US_ASCII).size)
                 socket.soTimeout = socketTimeout
                 connectionTries = 0
@@ -81,6 +82,7 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
                 logger.debug {"All jobs canceled"}
 //                socket.close()
 
+                //Tiempo espera entre conexiones, equivalente a Thread.sleep()
                 delay(10000L)
             } catch (e: Exception) {
                 ledState.color = LedManager.LedColors.Red
@@ -92,6 +94,7 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
                 }
                 logger.info { "Connection attempts: $connectionTries" }
                 connectionTries++
+                //Tiempo espera entre conexiones, equivalente a Thread.sleep()
                 delay(10000L)
             }
         }
