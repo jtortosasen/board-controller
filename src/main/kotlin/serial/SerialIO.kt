@@ -123,6 +123,7 @@ class SerialIO: ISerialIO {
         val buffer = ArrayList<Byte>()
         var readFlag = false
         var startTime: Long = 0
+        val delayMaxTime = 100
 
         while(true){
             val bytesAvailable = serialPort.bytesAvailable()
@@ -143,7 +144,7 @@ class SerialIO: ISerialIO {
             }else{
                 if (!readFlag)
                     continue
-                if((System.currentTimeMillis() - startTime) < 100 || buffer.size <= 0 )
+                if((System.currentTimeMillis() - startTime) < delayMaxTime || buffer.size <= 0 )
                     continue
 
                 led.color = LedManager.LedColors.LightBlue
