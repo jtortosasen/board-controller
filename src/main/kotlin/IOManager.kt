@@ -36,11 +36,11 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
 
         while (true) {
             val ledState: LedState by inject()
-
+            var socket: Socket? = null
             try {
                 logger.debug { "Connecting to TCP $serverIP: $serverPort" }
 
-                val socket = Socket()
+                socket = Socket()
                 socket.connect(InetSocketAddress(serverIP, serverPort), 10_000)
                 logger.info { "Connected to server $serverIP:$serverPort" }
                 // Enviamos Gestimaq para que el servidor detecte que no es una conexion "fantasma" o antigua
@@ -89,6 +89,7 @@ class IOManager(val configuration: IConfiguration) : KoinComponent {
                 logger.error(e) {e}
                 if(connectionTries > 30){
                     logger.info { "Max connection attemps reached, rebooting" }
+                    socket?.close()
                     Runtime.getRuntime().exec("reboot")
                     System.exit(0)
                 }

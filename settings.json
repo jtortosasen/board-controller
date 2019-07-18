@@ -1,7 +1,7 @@
 {
-    "server_address": "192.168.1.22",
+    "server_address": "192.168.1.133",
     "server_port": 9923,
-    "serial_port": "/dev/ttyAMA4",
+    "serial_port": "COM7",
     "mac_path": "/sys/class/net/wlan0/address",
     "stable_channel": "",
     "testing_channel": ""

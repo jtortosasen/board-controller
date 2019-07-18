@@ -16,7 +16,7 @@ import java.io.File
  */
 class Application : KoinComponent {
 
-    private val VERSION = 1.3
+    private val VERSION = 1.45
 
     private val logger = KotlinLogging.logger {}
     private val settingsPath = "/home/artik/settings.json"

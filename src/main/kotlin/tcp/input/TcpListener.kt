@@ -45,8 +45,8 @@ class TcpListener(private val handler: IHandler) : IListener, KoinComponent {
                 if (data.isEmpty())
                     break
                 led.color = LedManager.LedColors.LightBlue
-                logger.debug { "Recieved data: " }
-                logger.debug { data.map { it.toUByte().toString(16) } }
+                logger.info { "Recieved data from TCP: " }
+                logger.info { data.map { it.toUByte().toString(16) } }
                 // Mandamos los datos al handler/router
                 handler.handle(data)
                 delay(1000)

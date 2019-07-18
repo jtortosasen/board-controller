@@ -15,8 +15,9 @@ interface ISerialIO {
     fun serialParams(baudRate: Int, dataBits: Int, parity: Int, stopBits: Int)
     fun write(byteArray: ByteArray)
     suspend fun read(): ByteArray
+    suspend fun read(timeout: Long): ByteArray
     suspend fun flush()
-    fun open()
+    fun open(): Boolean
     fun close(): Boolean
     var led: LedState
 }
@@ -29,7 +30,7 @@ class SerialIO: ISerialIO {
     private lateinit var input: InputStream
 
     override var mode9Bit: Boolean = false
-
+    val delayMaxTime = 120
     private val even = "-parodd"
     private val odd = "parodd"
     private var currentParity = ""
@@ -62,14 +63,21 @@ class SerialIO: ISerialIO {
         serialPort = SerialPort.getCommPort(serialPortName)
     }
 
-    override fun open(){
-        serialPort.openPort()
-        serialPort.setComPortTimeouts(SerialPort.TIMEOUT_NONBLOCKING, 0, 0)
-        output = serialPort.outputStream
-        input = serialPort.inputStream
+    override fun open(): Boolean{
+        logger.info { "Opening COM port" }
+        val success = serialPort.openPort()
+        return if(!success)
+            success
+        else{
+            serialPort.setComPortTimeouts(SerialPort.TIMEOUT_NONBLOCKING, 0, 0)
+            output = serialPort.outputStream
+            input = serialPort.inputStream
+            success
+        }
     }
 
     override fun close(): Boolean {
+        logger.info { "Closing COM port" }
         return serialPort.closePort()
     }
 
@@ -119,13 +127,66 @@ class SerialIO: ISerialIO {
         }
     }
 
+    override suspend fun read(timeout: Long): ByteArray{
+        val buffer = ArrayList<Byte>()
+        var readFlag = false
+        var startTime: Long = 0
+        var timeoutFlag = false
+
+        while (true) {
+            if(!serialPort.isOpen)
+                return arrayOf<Byte>().toByteArray()
+
+            val bytesAvailable = serialPort.bytesAvailable()
+
+            if (!timeoutFlag) {
+                logger.debug { "Entering mode timeout" }
+                startTime = System.currentTimeMillis()
+                timeoutFlag = true
+            }
+
+            if (bytesAvailable > 0) {
+                led.color = LedManager.LedColors.Green
+
+                val chunkBuffer = ByteArray(bytesAvailable)
+
+                if (serialPort.readBytes(chunkBuffer, chunkBuffer.size.toLong()) <= 0)
+                    continue
+
+                startTime = System.currentTimeMillis()
+                readFlag = true
+                timeoutFlag = false
+
+                for (chunk in chunkBuffer)
+                    buffer.add(chunk)
+            } else {
+                if (timeoutFlag && (System.currentTimeMillis() - startTime) >= timeout) {
+                    logger.debug { "Return buffer empty" }
+                    return arrayOf<Byte>().toByteArray()
+                }
+
+                if (!readFlag)
+                    continue
+                if ((System.currentTimeMillis() - startTime) < delayMaxTime || buffer.size <= 0)
+                    continue
+
+                led.color = LedManager.LedColors.LightBlue
+                return buffer.toByteArray()
+            }
+        }
+    }
+
     override suspend fun read(): ByteArray {
         val buffer = ArrayList<Byte>()
         var readFlag = false
         var startTime: Long = 0
-        val delayMaxTime = 100
 
         while(true){
+
+            if(!serialPort.isOpen){
+                return arrayOf<Byte>().toByteArray()
+            }
+
             val bytesAvailable = serialPort.bytesAvailable()
 
             if(bytesAvailable > 0){

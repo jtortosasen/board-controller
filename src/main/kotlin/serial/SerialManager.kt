@@ -1,6 +1,7 @@
 package serial
 
 import command.Command
+import command.extractCommand
 import config.IConfiguration
 import gpio.LedManager
 import gpio.LedState
@@ -10,6 +11,7 @@ import mu.KotlinLogging
 import tcp.input.IHandler
 import tcp.output.ISender
 import java.lang.Exception
+import java.util.*
 
 
 interface ISerialManager {
@@ -36,7 +38,9 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
 
     private lateinit var state: Command.IO
     private lateinit var masterJob: Job
-    private lateinit var listenerSerialJob: Job
+    private var listenerSerialJob: Job? = null
+    private var isCheckingStatus = false
+    @Volatile var checkedStatus: Int = 0
     private val isMasterActivated: Boolean
         get() {
             if (this::state.isInitialized)
@@ -56,7 +60,6 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
         serialIO.comPort(config.serialPort)
         serialIO.led = led
         serialIO.close()
-        serialIO.open()
         while (isActive) {
             val command = handleChannel.receive()
             routeCommand(command)
@@ -68,8 +71,25 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
     private suspend fun listenSerial() = CoroutineScope(Dispatchers.IO).launch {
         while (isActive) {
             try{
-                send(serialIO.read())
-                led.color = LedManager.LedColors.LightBlue
+                if(isCheckingStatus){
+                    val data = serialIO.read(timeout=3000)
+                    logger.debug { "Checking status serial RAW:" }
+                    logger.debug { data.map { it.toUByte().toString(16) } }
+                    if(data.isEmpty())
+                        logger.debug { "EMPTY" }
+                    else logger.debug { "NOT EMPTY" }
+                    checkedStatus =
+                        if(data.isEmpty()) 0
+                        else 1
+                }else{
+                    val data = serialIO.read()
+                    if(data.isNotEmpty()){
+                        logger.debug { "Recieved from serial RAW:" }
+                        logger.debug { data.map { it.toUByte().toString(16) } }
+                        send(data)
+                    }
+                    led.color = LedManager.LedColors.LightBlue
+                }
             }catch (e: Exception){
                 logger.error(e) { e }
             }
@@ -93,15 +113,68 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
         is Command.IO.OpenSlave19200B8N1 -> openPortAsSlave(command)
         is Command.IO.OpenSlave19200B9N1 -> openPortAsSlave(command)
         is Command.IO.CloseSlave         -> closePort(command)
-        is Command.IO.SendSlave          -> writeData(command)
+        is Command.IO.SendSlave          -> when(command){
+            is Command.IO.CheckCommunication -> checkCommunication(command)
+            else -> writeData(command)
+        }
         is Command.IO.MasterMode         -> startMasterMode(command)
     }
 
+    private suspend fun checkCommunication(command: Command.IO.CheckCommunication){
+        logger.debug { "Checking status" }
+        serialIO.close()
+        delay(1000)
+        logger.debug { "closing COM port" }
+        isCheckingStatus = true
+        delay(1000)
+        serialIO.open()
+        logger.debug { "open COM port" }
+        when(val subCommand = byteArrayOf(command.content[0]).extractCommand()){
+            is Command.IO.OpenSlave9600B8N1  -> {
+                logger.debug { "Write to com port " }
+                configureComPort(subCommand)
+                write(Arrays.copyOfRange(command.content, 1, command.content.size))
+            }
+            is Command.IO.OpenSlave19200B8N1 -> {
+                logger.debug { "Write to com port " }
+                configureComPort(subCommand)
+                write(Arrays.copyOfRange(command.content, 1, command.content.size))
+            }
+            is Command.IO.OpenSlave19200B9N1 -> {
+                logger.debug { "Write to com port " }
+                configureComPort(subCommand)
+                write(byteArrayOf(0x80.toByte()))
+                write(byteArrayOf(0x81.toByte()))
+            }
+        }
+        delay(3000)
+        isCheckingStatus = false
+        if(checkedStatus == 1){
+            send(byteArrayOf(0x06),command=0x46)
+        }else{
+            send(byteArrayOf(0x15), command=0x46)
+        }
+
+    }
+
     private suspend fun openPortAsSlave(command: Command.IO) {
-        setCommand(command)
-        setPortParams(command)
-        senderChannel.send(byteArrayOf(0x06))
-        listenerSerialJob = listenSerial()
+        registerCommand(command)
+        configureComPort(command)
+        if(serialIO.open()){
+            senderChannel.send(byteArrayOf(0x06))
+        }else{
+            senderChannel.send(byteArrayOf(0x15))
+        }
+        if(listenerSerialJob == null){
+            listenerSerialJob = listenSerial()
+        }else{
+            listenerSerialJob?.let {
+                if(!it.isActive){
+                    logger.debug { "listenerSerialJob not active, initializating" }
+                    listenerSerialJob = listenSerial()
+                }
+            }
+        }
     }
 
     private fun configurePort(baudRate: Int, dataBits: Int, parity: Int, stopBits: Int) {
@@ -113,36 +186,34 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
         )
     }
 
-    private suspend fun setCommand(command: Command.IO) {
+    private suspend fun registerCommand(command: Command.IO) {
         if (isMasterActivated) {
             logger.debug { "Stopping master mode" }
             state = command
             masterJob.cancelAndJoin()
         } else{
-            if(this::listenerSerialJob.isInitialized)
-                if(
-                    (command is Command.IO.OpenSlave19200B8N1
-                    || command is Command.IO.OpenSlave19200B8N1
-                    || command is Command.IO.OpenSlave19200B8N1)
-                    && listenerSerialJob.isActive){
-                    listenerSerialJob.cancel()
+            listenerSerialJob?.let{
+                if(command is Command.IO.MasterMode && it.isActive){
+                    it.cancel()
                 }
+            }
             logger.debug { "Setting command (no previous master mode)" }
         }
         state = command
     }
 
-    private fun setPortParams(command: Command.IO) {
+    private fun configureComPort(command: Command.IO) {
         configurePort(command.baudRate, command.dataBits, command.parity, command.stopBits)
     }
 
     private suspend fun closePort(command: Command.IO.CloseSlave) {
-        setCommand(command)
-        setPortParams(command)
+        serialIO.close()
+        registerCommand(command)
+//        configureComPort(command)
     }
 
     private suspend fun writeData(command: Command.IO.SendSlave) {
-        setCommand(command)
+        registerCommand(command)
         logger.debug { "Writing command content to serial com" }
         logger.debug {
             command.content.map { it.toUByte().toString(16) }
@@ -159,7 +230,7 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
     }
 
     private suspend fun startMasterMode(command: Command.IO.MasterMode) {
-        setCommand(command)
+        registerCommand(command)
         withContext(Dispatchers.IO) {
             when (command) {
                 is Command.IO.MasterMode.Sas -> masterJob = launch { sasRoutine() }
@@ -206,8 +277,6 @@ class SerialManager(handle: IHandler, sender: ISender, val config: IConfiguratio
             dataWithHeader = applyHeader(headerMaster, data)
         else
             dataWithHeader = applyHeader(headerSlave, data)
-        logger.debug { "Recieved from serial WITH HEADER:" }
-        logger.debug { dataWithHeader.map { it.toUByte().toString(16) } }
         senderChannel.send(dataWithHeader)
     }
 

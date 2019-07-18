@@ -29,12 +29,13 @@ sealed class Command {
             stopBits = SerialPort.ONE_STOP_BIT
         )
         class CloseSlave : IO()
-        class SendSlave(val content: ByteArray) : IO()
-        sealed class MasterMode: IO(){
+        open class SendSlave(val content: ByteArray) : IO()
+        sealed class MasterMode: IO() {
             class Cirsa : MasterMode()
-            class Franco: MasterMode()
-            class Sas: MasterMode()
+            class Franco : MasterMode()
+            class Sas : MasterMode()
         }
+        class CheckCommunication(content: ByteArray): SendSlave(content = content)
     }
 
     class OpenLedWhite : Command()
@@ -81,6 +82,7 @@ sealed class Command {
                 0x15.toByte() -> IdMacNACK()
                 0x06.toByte() -> IdMacACK()
                 0xaf.toByte() -> SwapProgram()
+                0x46.toByte() -> IO.CheckCommunication(content = content)
                 else -> None()
             }
         }
@@ -109,25 +111,33 @@ fun ByteArray.extractCommand(): Command {
     val commande0 = byteArrayOf(0x55, 0xFF.toByte(), 0xe0.toByte(), 0xFF.toByte(), 0xe0.toByte(), 0x03)
     val command99 = byteArrayOf(0x55, 0xFF.toByte(), 0x99.toByte(), 0xFF.toByte(), 0x99.toByte(), 0x03)
     val commandaf = byteArrayOf(0x55, 0xFF.toByte(), 0xaf.toByte(), 0xFF.toByte(), 0xaf.toByte(), 0x03)
+    val command46 = byteArrayOf(0x55, 0xFF.toByte(), 0x46, 0xFF.toByte(), 0x46, 0x03)
+    val command4622 = byteArrayOf(0x22)
+    val command4623 = byteArrayOf(0x23)
+    val command4624 = byteArrayOf(0x24)
+
 
     if (array.size == 1) {
         return Command.get(command = array[0])
     } else {
         when {
-            array have command22 -> {
+            array have command45 -> {
+                return Command.get(command = 0x45, content = Arrays.copyOfRange(array, array.indexOf(command45[command45.size - 1]) + 1, array.size))
+            }
+            array have command46 -> {
+                return Command.get(command = 0x46, content = Arrays.copyOfRange(array, array.indexOf(command45[command45.size - 1]) + 1, array.size))
+            }
+            array have command22 || array have command4622 -> {
                 return Command.get(command = 0x22)
             }
-            array have command23 -> {
+            array have command23 || array have command4623-> {
                 return Command.get(command = 0x23)
             }
-            array have command24 -> {
+            array have command24 || array have command4624 -> {
                 return Command.get(command = 0x24)
             }
             array have command25 -> {
                 return Command.get(command = 0x25)
-            }
-            array have command45 -> {
-                return Command.get(command = 0x45, content = Arrays.copyOfRange(array, array.indexOf(command45[command45.size - 1]) + 1, array.size))
             }
             array have command93 -> {
                 return Command.get(command = 0x93.toByte())
